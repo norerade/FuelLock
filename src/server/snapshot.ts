@@ -1,5 +1,5 @@
 import { aiConfigured } from "./providers/ai-report";
-import { and, eq, desc, gt, sql } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db as householdDatabase } from "./db/client";
 import * as t from "./db/schema";
 import type { Identity } from "./session";
@@ -19,7 +19,6 @@ export async function snapshot(actor: Identity, db = householdDatabase) {
     periods,
     claims,
     transfers,
-    invitations,
   ] = await db.batch([
     db.select().from(t.families).where(eq(t.families.id, f)),
     db.select().from(t.drivers).where(eq(t.drivers.family, f)),
@@ -41,17 +40,6 @@ export async function snapshot(actor: Identity, db = householdDatabase) {
       .from(t.transfers)
       .where(eq(t.transfers.family, f))
       .orderBy(desc(t.transfers.at)),
-    db
-      .select()
-      .from(t.invites)
-      .where(
-        and(
-          eq(t.invites.family, f),
-          eq(t.invites.used, 0),
-          gt(t.invites.expires, now),
-          actor.role === "owner" ? undefined : sql`0`,
-        ),
-      ),
   ]);
   return {
     actor,
@@ -80,7 +68,6 @@ export async function snapshot(actor: Identity, db = householdDatabase) {
     periods,
     claims,
     transfers,
-    invitations,
     now,
   };
 }

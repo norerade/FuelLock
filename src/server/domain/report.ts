@@ -1,5 +1,5 @@
 import type { Snapshot } from "../snapshot";
-import { lineCents, usd, gallons } from "./money";
+import { lineCents, usd, gallons, familyPlanCents } from "./money";
 export function reportFacts(r: ReturnType<typeof report>) {
   return {
     spending:
@@ -35,10 +35,14 @@ export function reportFacts(r: ReturnType<typeof report>) {
       usd(r.protectionFees) +
       " in protection fees and " +
       usd(r.serviceFees) +
-      " in service fees.",
+      " in service fees" +
+      (r.planFee
+        ? " and " + usd(r.planFee) + " for one modeled month of Family"
+        : "") +
+      ".",
   };
 }
-export function report(s: Snapshot, month: string) {
+export function report(s: Snapshot, month: string, includePlan = false) {
   const entries = s.purchases.filter(
     (p) => p.at.startsWith(month) && p.status === "posted",
   );
@@ -70,7 +74,22 @@ export function report(s: Snapshot, month: string) {
   const total = fuel + fees + upfront;
   const budget =
     s.periods.find((p) => p.month === month)?.budget ?? s.family.budget;
+  const market = sum((p) => p.market);
+  const prepaidUsed = sum((p) => {
+    const c = s.contracts.find((c) => c.id === p.contract);
+    const offer = s.offers.find((o) => o.id === c?.offer);
+    return offer?.kind === "prebuy" ? lineCents(p.covered, offer.cap) : 0;
+  });
+  const planFee = includePlan ? familyPlanCents : 0;
+  const withFuelLock = fuel + prepaidUsed + fees + planFee;
+  const net = benefit + prebuyEffect + paid + claims - fees - planFee;
+  const rounding = net - (market - withFuelLock + paid + claims);
   return {
+    market,
+    prepaidUsed,
+    withFuelLock,
+    rounding,
+    planFee,
     entries,
     fuel,
     benefit,
@@ -84,7 +103,7 @@ export function report(s: Snapshot, month: string) {
     remaining: budget - total,
     paid,
     claims,
-    net: benefit + prebuyEffect + paid + claims - fees,
+    net,
     volume: sum((p) => p.volume),
     roundups: sum((p) => p.roundUp),
   };

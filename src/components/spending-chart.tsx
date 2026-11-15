@@ -2,7 +2,8 @@
 import { useState } from "react";
 import {
   Area,
-  AreaChart,
+  ComposedChart,
+  Bar,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
@@ -72,12 +73,8 @@ export function SpendingChart({ s, month }: { s: S; month: string }) {
         role="group"
         aria-label={mode + " fuel spending compared with pump prices"}
       >
-        <ResponsiveContainer
-          width="100%"
-          height="100%"
-          initialDimension={{ width: 510, height: 170 }}
-        >
-          <AreaChart
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart
             data={data}
             margin={{ top: 8, right: 10, bottom: 0, left: -20 }}
           >
@@ -121,26 +118,48 @@ export function SpendingChart({ s, month }: { s: S; month: string }) {
               formatter={(v) => usd(Number(v))}
               labelFormatter={(d) => month + "-" + String(d).padStart(2, "0")}
             />
-            <Area
-              name="Cost at pump prices"
-              dataKey="market"
-              type="monotone"
-              stroke="#66817e"
-              strokeDasharray="5 5"
-              strokeWidth={2}
-              fill="none"
-              isAnimationActive={false}
-            />
-            <Area
-              name="Paid at pump"
-              dataKey="actual"
-              type="monotone"
-              stroke="#057077"
-              strokeWidth={3}
-              fill="url(#fuelFill)"
-              isAnimationActive={false}
-            />
-          </AreaChart>
+            {mode === "Daily" ? (
+              <>
+                <Bar
+                  name="Cost at pump prices"
+                  dataKey="market"
+                  fill="#76908b"
+                  maxBarSize={17}
+                  isAnimationActive={false}
+                />
+                <Bar
+                  name="Paid at pump"
+                  dataKey="actual"
+                  fill="#057077"
+                  maxBarSize={17}
+                  isAnimationActive={false}
+                />
+              </>
+            ) : (
+              <>
+                {" "}
+                <Area
+                  name="Cost at pump prices"
+                  dataKey="market"
+                  type="monotone"
+                  stroke="#66817e"
+                  strokeDasharray="5 5"
+                  strokeWidth={2}
+                  fill="none"
+                  isAnimationActive={false}
+                />
+                <Area
+                  name="Paid at pump"
+                  dataKey="actual"
+                  type="monotone"
+                  stroke="#057077"
+                  strokeWidth={3}
+                  fill="url(#fuelFill)"
+                  isAnimationActive={false}
+                />
+              </>
+            )}
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </section>

@@ -8,7 +8,12 @@ import {
   perGallon,
   usd,
 } from "@/server/domain/money";
-import { defaultTrip, rankStations } from "@/server/domain/trips";
+import { StationCost } from "./station-cost";
+import {
+  defaultTrip,
+  rankStations,
+  stationReason,
+} from "@/server/domain/trips";
 import { routes } from "@/server/providers/routes";
 import {
   type S,
@@ -75,8 +80,9 @@ export function Trips({ s }: { s: S }) {
       <section className="panel">
         <SectionTitle
           title="Stations on your route"
-          sub="Ranked by estimated fuel due now plus the fuel cost of the round-trip detour."
+          sub="Ranked by estimated net cost, including detour fuel and expected cashback."
         />
+        {!!rows.length && <p>{stationReason(rows)}</p>}
         {!rows.length && (
           <p role="status">Enter a volume from 0.001 to 250 gallons.</p>
         )}
@@ -102,14 +108,15 @@ export function Trips({ s }: { s: S }) {
                   <b>{usd(r.fuel)}</b>
                 </div>
                 <div>
-                  <small>Detour · {r.detour / 10} mi</small>
+                  <small>Detour · {decimalText(r.detour, 1, 0)} mi</small>
                   <b>{usd(r.detourCost)}</b>
                 </div>
                 <div>
-                  <small>Estimated total</small>
+                  <small>Estimated net cost</small>
                   <b>{usd(r.total)}</b>
                 </div>
               </div>
+              <StationCost stop={r} />
               <div className="route-note">
                 <Navigation size={13} />
                 {r.option}
@@ -249,7 +256,7 @@ export function Goals({ s }: { s: S }) {
                 name="consent"
                 defaultChecked={!!s.family.transferConsent}
               />
-              I authorize simulated transfers under these rules.
+              I authorize new simulated transfers under these rules.
             </label>
           </ActionForm>
         ) : (
@@ -295,7 +302,9 @@ export function Goals({ s }: { s: S }) {
               {s.transfers.map((t) => (
                 <tr key={t.purchase + t.kind}>
                   <td>{s.goals.find((g) => g.id === t.goal)?.name}</td>
-                  <td data-label="Date">{prettyDate(t.at, true)}</td>
+                  <td data-label="Date">
+                    {prettyDate(t.at, true, s.family.timeZone)}
+                  </td>
                   <td data-label="Source">
                     {t.kind === "roundup" ? "Round-up" : "Cashback"}
                   </td>
@@ -339,6 +348,25 @@ export function Settings({ s }: { s: S }) {
                   defaultValue={s.family.nextPayday ?? ""}
                 />
               </Field>
+              <Field name="Family time zone">
+                <input
+                  name="timeZone"
+                  defaultValue={s.family.timeZone}
+                  required
+                  list="family-zones"
+                />
+                <datalist id="family-zones">
+                  {[
+                    "America/New_York",
+                    "America/Chicago",
+                    "America/Denver",
+                    "America/Los_Angeles",
+                    "UTC",
+                  ].map((zone) => (
+                    <option key={zone} value={zone} />
+                  ))}
+                </datalist>
+              </Field>
               <Field name="Owner name">
                 <input
                   name="owner"
@@ -361,7 +389,7 @@ export function Settings({ s }: { s: S }) {
         ) : (
           <p>
             {s.family.name} · Default monthly budget {usd(s.family.budget)} ·
-            Next payday {s.family.nextPayday ?? "Not set"}
+            Next payday {s.family.nextPayday ?? "Not set"} · {s.family.timeZone}
           </p>
         )}
       </section>
@@ -385,7 +413,7 @@ export function Settings({ s }: { s: S }) {
         <Fact name="Target contribution">{usd(400)}</Fact>
         <Fact name="Variable cost limit">{usd(699 - 400)}</Fact>
       </section>
-      <section className="panel">
+      <section className="panel integrations">
         <SectionTitle title="Integrations" />
         {[
           "Station partners & settlement",
@@ -393,24 +421,33 @@ export function Settings({ s }: { s: S }) {
           "Receipt protection",
           "Rewards & savings transfers",
         ].map((name) => (
-          <Fact key={name} name={name}>
+          <Fact name={name} key={name}>
             <Tag>Simulated</Tag>
           </Fact>
         ))}
         {[
-          "Bank feed",
-          "Live maps",
-          "Receipt OCR",
-          "Subscription billing",
-          "529 provider",
-        ].map((name) => (
-          <Fact key={name} name={name}>
-            <Tag tone="gray">Not connected</Tag>
-          </Fact>
-        ))}
-        <Fact name="AI report provider">
-          {s.aiEnabled ? "Configured" : "Not connected"}
-        </Fact>
+          ["Bank feed", "No bank account is linked."],
+          ["Live maps", "Routes use demo distances."],
+          ["Receipt OCR", "Receipt details are entered manually."],
+          ["Subscription billing", "The pilot does not collect payments."],
+          ["529 provider", "No education savings provider is linked."],
+          ["AI report provider", "No report model is configured."],
+        ].map(([name, reason]) => {
+          const configured = name === "AI report provider" && s.aiEnabled;
+          return (
+            <div className="integration-row" key={name}>
+              <div>
+                <b>{name}</b>
+                <small>
+                  {configured ? "A report model is configured." : reason}
+                </small>
+              </div>
+              <Tag tone={configured ? "green" : "gray"}>
+                {configured ? "Configured" : "Not connected"}
+              </Tag>
+            </div>
+          );
+        })}
       </section>
     </div>
   );

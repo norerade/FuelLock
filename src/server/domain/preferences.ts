@@ -87,12 +87,30 @@ export async function settings(
       owner: label,
       driver: label,
       budget: dollars,
+      timeZone: z
+        .string()
+        .max(80)
+        .refine((value) => {
+          try {
+            new Intl.DateTimeFormat("en-US", { timeZone: value });
+            return true;
+          } catch {
+            return false;
+          }
+        }, "Choose a valid IANA time zone.")
+        .optional(),
       nextPayday: z.union([z.iso.date(), z.literal("")]).optional(),
     })
     .parse(input);
   await tx.execute({
-    sql: "UPDATE families SET name=?,budget=?,next_payday=NULLIF(COALESCE(?,next_payday),'') WHERE id=?",
-    args: [data.household, data.budget, data.nextPayday ?? null, a.family],
+    sql: "UPDATE families SET name=?,budget=?,next_payday=NULLIF(COALESCE(?,next_payday),''),time_zone=COALESCE(?,time_zone) WHERE id=?",
+    args: [
+      data.household,
+      data.budget,
+      data.nextPayday ?? null,
+      data.timeZone ?? null,
+      a.family,
+    ],
   });
   await tx.execute({
     sql: "UPDATE drivers SET name=CASE WHEN role='owner' THEN ? ELSE ? END WHERE family=?",

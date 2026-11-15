@@ -8,6 +8,7 @@ import {
 } from "../domain/purchases";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { claimReceipt } from "../domain/claims";
 import { lineCents } from "../domain/money";
 import { requireThat } from "../domain/validation";
 export const code = () => "FL-" + randomBytes(4).toString("hex").toUpperCase();
@@ -30,7 +31,7 @@ export async function seedFamily(
   const owner = randomUUID(),
     member = randomUUID();
   await tx.execute({
-    sql: "INSERT INTO families(id,name,budget,plan,demo,created,next_payday) VALUES(?,?,?,'Family',1,?,?)",
+    sql: "INSERT INTO families(id,name,budget,plan,demo,created,next_payday,transfer_consent) VALUES(?,?,?,'Family',1,?,?,1)",
     args: [id, "Morgan household", 32000, iso, until.slice(0, 10)],
   });
   for (const [driver, name, role] of [
@@ -41,15 +42,6 @@ export async function seedFamily(
       sql: "INSERT INTO drivers VALUES(?,?,?,?)",
       args: [driver, id, name, role],
     });
-  await tx.execute({
-    sql: "INSERT INTO invites(id,family,driver,expires,used) VALUES(?,?,?,?,0)",
-    args: [
-      randomBytes(24).toString("hex"),
-      id,
-      member,
-      new Date(now.getTime() + 86400000).toISOString(),
-    ],
-  });
   for (const [name, fuel, mpg] of [
     ["Subaru Outback", "Gasoline", 28],
     ["VW Golf TDI", "Diesel", 36],
@@ -196,7 +188,7 @@ export async function seedFamily(
     const purchase = await insertPurchase(tx, {
       family: id,
       driver: member,
-      station: stationIds[2],
+      station: status === "posted" ? stationIds[0] : stationIds[2],
       contract: null,
       fuel: "Gasoline",
       grade: "Regular 87",
@@ -206,7 +198,12 @@ export async function seedFamily(
       amount,
       benefit: 0,
       market: amount,
-      at: start,
+      at:
+        status === "posted"
+          ? new Date(
+              Math.max(Date.parse(start), now.getTime() - 14 * 86400000),
+            ).toISOString()
+          : start,
       source: status === "posted" ? "Receipt" : "Bank record",
     });
     if (status === "posted") {
@@ -220,11 +217,17 @@ export async function seedFamily(
           id,
           purchase,
           digest(content),
-          "cedar-point-demo.png",
+          "pineway-demo-receipt.png",
           "image/png",
           content,
         ],
       });
+      await claimReceipt(
+        tx,
+        { family: id, driver: member, role: "driver" },
+        purchase,
+        iso,
+      );
     } else if (status === "cancelled") {
       await cancelPurchase(tx, id, purchase);
     } else {
@@ -234,17 +237,6 @@ export async function seedFamily(
       });
     }
   }
-  // Historical simulated transfers only. New transfers require the owner's own opt-in.
-  await tx.execute({
-    sql: `UPDATE purchases SET round_up=(100-amount%100)%100,goal=(SELECT id FROM goals WHERE family=?)
-    WHERE family=? AND status='posted' AND reward_status='paid'`,
-    args: [id, id],
-  });
-  await tx.execute({
-    sql: `UPDATE purchases SET reward_goal=(SELECT id FROM goals WHERE family=?),reward_transfer_at=at
-    WHERE family=? AND status='posted' AND reward_status='confirmed'`,
-    args: [id, id],
-  });
   return { family: id, driver: owner };
 }
 export async function confirmContract(

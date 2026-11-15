@@ -170,6 +170,11 @@ describe("household transaction boundary", () => {
         db,
       ),
     ).toBe(bank.purchase);
+    const allocation = await db.execute({
+      sql: "SELECT amount FROM savings_transfers WHERE purchase=? AND kind='roundup'",
+      args: [bank.purchase],
+    });
+    expect(allocation.rows.map((row) => row.amount)).toEqual([75]);
     expect(
       (
         await db.execute({

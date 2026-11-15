@@ -15,6 +15,7 @@ export const families = sqliteTable("families", {
   plan: s("plan"),
   demo: n("demo"),
   created: s("created"),
+  timeZone: s("time_zone"),
   nextPayday: text("next_payday"),
   transferLimit: n("transfer_limit"),
   minimumBalance: n("minimum_balance"),

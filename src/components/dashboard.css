@@ -198,31 +198,6 @@
   background: linear-gradient(115deg, #fff2bf, #ffe39b 60%, #ffdb7b);
   box-shadow: 0 6px 24px -16px #7e611f69;
 }
-.pass-print {
-  position: absolute;
-  pointer-events: none;
-  z-index: -1;
-  right: -13%;
-  top: -15%;
-  width: 60%;
-  height: 150%;
-  transform: rotate(27deg);
-  overflow: visible;
-}
-.pass-print i {
-  position: absolute;
-  inset: -17% -48% -6% 6%;
-  border-radius: 49%;
-  border: clamp(12px, 2.2vw, 35px) solid #235e62;
-}
-.pass-print i:nth-child(2) {
-  inset: -5% -39% -17% 23%;
-  border-color: #87ada2;
-}
-.pass-print i:nth-child(3) {
-  inset: 8% -35% -30% 41%;
-  border-color: #e3b057;
-}
 .pass-issuer {
   justify-content: space-between;
   position: relative;
@@ -556,9 +531,7 @@
     align-items: flex-start;
     flex-direction: column;
   }
-  .pass-print {
-    right: -25%;
-  }
+
   .balance-amount > strong {
     font-size: 42px;
   }
@@ -632,7 +605,42 @@
     font-size: 37px;
   }
   .fuel-pass {
-    min-height: 192px;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    padding: 14px 17px;
+    gap: 6px 12px;
+  }
+  .fuel-pass .pass-issuer {
+    grid-column: 1/-1;
+  }
+  .fuel-pass .pass-issuer > svg {
+    display: none;
+  }
+  .fuel-pass .pass-main {
+    padding: 0;
+    max-width: none;
+  }
+  .fuel-pass .pass-main strong {
+    font-size: 28px;
+  }
+  .fuel-pass .pass-main p {
+    margin: 0;
+  }
+  .fuel-pass footer {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .fuel-pass footer > span {
+    display: block;
+  }
+  .fuel-pass footer b {
+    display: inline;
+  }
+  .fuel-pass footer b::before {
+    content: " ";
   }
   .metric-grid {
     grid-template-columns: 1fr 1fr;
@@ -657,9 +665,7 @@
   .chart {
     height: 170px;
   }
-  .pass-print {
-    right: -16%;
-  }
+
   .scenario-comparison strong {
     font-size: 23px;
   }

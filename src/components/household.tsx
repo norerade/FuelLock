@@ -4,7 +4,6 @@ import { CarFront, Plus, UserRoundPlus } from "lucide-react";
 import {
   type S,
   SectionTitle,
-  prettyDate,
   Tag,
   Field,
   ActionForm,
@@ -40,32 +39,20 @@ export function Household({ s }: { s: S }) {
             <Tag tone="gray">{d.role}</Tag>
           </div>
         ))}
-        {s.invitations.map((i) => (
-          <div className="list-line" key={i.id}>
-            <div className="grow">
-              <b>
-                Pending invitation ·{" "}
-                {s.drivers.find((d) => d.id === i.driver)?.name}
-              </b>
-              <small>Expires {prettyDate(i.expires, true)}</small>
-            </div>
-            <Copy value={"/join/" + i.id} link label="Copy invite" />
-          </div>
-        ))}
         {owner && (
           <Modal
-            title="Invite your second driver"
+            title="Share driver access"
             description="This one-time link opens the same household under the selected driver’s profile. It expires in 24 hours."
             trigger={
               <button className="secondary">
                 <UserRoundPlus size={16} />
-                Invite driver
+                Share driver access
               </button>
             }
           >
             <ActionForm
               action="invite"
-              submit="Create invitation"
+              submit="Create access link"
               onSuccess={(r) =>
                 setInvite(window.location.origin + r.invitation)
               }

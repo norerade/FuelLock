@@ -12,38 +12,22 @@ import {
 import { BalanceCard } from "./balance-card";
 import { SpendingChart } from "./spending-chart";
 import { report, reportFacts } from "@/server/domain/report";
-import {
-  decimal,
-  decimalText,
-  lockScenario,
-  usd,
-  gallons,
-  perGallon,
-} from "@/server/domain/money";
-import { type S, SectionTitle, Field, Fact, Empty } from "./ui";
+import { gallons, usd } from "@/server/domain/money";
+import { FamilyPlanToggle, useFamilyPlan } from "./family-plan";
+import { ProtectionScenario } from "./protection-scenario";
+import { type S, SectionTitle, Field, Empty } from "./ui";
 export function Reports({ s, month }: { s: S; month: string }) {
-  const r = report(s, month),
+  const includePlan = useFamilyPlan();
+  const r = report(s, month, includePlan),
     facts = reportFacts(r);
-  const current = s.contracts.filter(
-    (c) =>
-      c.status === "active" &&
-      c.available > 0 &&
-      s.offers.find((o) => o.id === c.offer)?.kind === "lock",
+  const locks = s.offers.filter(
+    (o) =>
+      o.kind === "lock" &&
+      (o.status === "published" ||
+        s.contracts.some((c) => c.offer === o.id && c.status === "active")),
   );
-  const [id, setId] = useState(current[0]?.id ?? ""),
-    [volume, setVolume] = useState("12"),
-    [enteredPump, setPump] = useState<string | null>(null);
-  const c = current.find((c) => c.id === id) ?? current[0],
-    o = s.offers.find((o) => o.id === c?.offer);
-  const pump =
-    enteredPump ?? decimalText(Math.max(1, (o?.cap ?? 1) - 100000), 6, 2);
-  let q;
-  try {
-    const g = decimal(volume, 3),
-      p = decimal(pump, 6);
-    if (g > 0 && g <= 250000 && p > 0 && p <= 25000000 && c && o)
-      q = lockScenario(g, c.available, p, o.cap, o.fee + o.service);
-  } catch {}
+  const [id, setId] = useState(locks[0]?.id ?? "");
+  const selected = locks.find((o) => o.id === id) ?? locks[0];
   return (
     <div className="report-layout">
       <div className="spotlight-grid report-spotlight">
@@ -67,6 +51,7 @@ export function Reports({ s, month }: { s: S; month: string }) {
             title="Savings breakdown"
             sub="How your monthly result adds up."
           />
+          <FamilyPlanToggle />
           <div className="breakdown-lines">
             {[
               {
@@ -99,6 +84,16 @@ export function Reports({ s, month }: { s: S; month: string }) {
                 icon: ArrowUpRight,
                 tone: "neutral",
               },
+              ...(r.planFee
+                ? [
+                    {
+                      label: "Family plan · modeled",
+                      cents: -r.planFee,
+                      icon: Coins,
+                      tone: "neutral",
+                    },
+                  ]
+                : []),
             ].map((row) => (
               <div className="breakdown-line" key={row.label}>
                 <span className={"metric-icon " + row.tone}>
@@ -130,98 +125,45 @@ export function Reports({ s, month }: { s: S; month: string }) {
               ))}
             </ul>
           </details>
-          {s.aiEnabled && <AiReport key={month} month={month} />}
+          {s.aiEnabled && !includePlan && (
+            <AiReport key={month} month={month} />
+          )}
         </section>
         <section className="panel scenario">
           <SectionTitle
             title="Pump price scenario"
-            sub="See what your next fill-up would cost."
+            sub="Compare buying protection with using a lock you already hold."
           >
             <span className="tile">
               <SlidersHorizontal size={18} />
             </span>
           </SectionTitle>
-          {c && o ? (
+          {locks.length > 0 ? (
             <>
-              <div className="scenario-fields">
-                <Field name="Partner Lock">
-                  <select
-                    value={c.id}
-                    onChange={(e) => {
-                      setId(e.target.value);
-                      setPump(null);
-                    }}
-                  >
-                    {current.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {s.offers.find((o) => o.id === c.offer)?.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field name="Hypothetical pump price ($/gal)">
-                  <input
-                    value={pump}
-                    inputMode="decimal"
-                    onChange={(e) => setPump(e.target.value)}
-                  />
-                </Field>
-                <Field name="Planned gallons">
-                  <input
-                    value={volume}
-                    inputMode="decimal"
-                    onChange={(e) => setVolume(e.target.value)}
-                  />
-                </Field>
-              </div>
-              {q ? (
-                <div className="facts scenario-results">
-                  <div className="scenario-comparison">
-                    <div>
-                      <small>At pump prices</small>
-                      <strong>{usd(q.market)}</strong>
-                    </div>
-                    <span aria-hidden="true">→</span>
-                    <div>
-                      <small>With this lock</small>
-                      <strong>{usd(q.fuel)}</strong>
-                    </div>
-                  </div>
-                  <Fact name="Protected cap">{perGallon(o.cap)}/gal</Fact>
-                  <Fact name="Protected / uncovered">
-                    {gallons(q.covered)} / {gallons(q.regular)} gal
-                  </Fact>
-
-                  <Fact name="Gross protection benefit">{usd(q.benefit)}</Fact>
-                  <Fact name="Full agreement fees">{usd(q.fees)}</Fact>
-                  <Fact name="Scenario net after fees">
-                    <span className={q.net < 0 ? "negative" : "credit"}>
-                      {usd(q.net)}
-                    </span>
-                  </Fact>
-                  {q.spread !== null && (
-                    <p>
-                      Break-even: market must exceed cap by{" "}
-                      {perGallon(q.spread)}/gal to recover the full fees on
-                      these {gallons(q.covered)} covered gallons.
-                    </p>
-                  )}
-                  <p className="terms">
-                    Fuel due equals covered gallons × the lower price, plus
-                    uncovered gallons × pump price. Protection and service fees
-                    are posted separately when the agreement activates.
-                  </p>
-                </div>
-              ) : (
-                <Empty>
-                  Enter up to 250 gallons and a pump price up to $25.
-                </Empty>
-              )}
+              <Field name="Partner Lock">
+                <select
+                  value={selected.id}
+                  onChange={(e) => setId(e.target.value)}
+                >
+                  {locks.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <ProtectionScenario
+                key={selected.id}
+                offer={selected}
+                available={
+                  s.contracts.find(
+                    (c) => c.offer === selected.id && c.status === "active",
+                  )?.available
+                }
+              />
             </>
           ) : (
-            <Empty>
-              No active Partner Lock has gallons available for a scenario.
-            </Empty>
+            <Empty>No Partner Lock available for evaluation.</Empty>
           )}
         </section>
       </div>

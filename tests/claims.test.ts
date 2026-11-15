@@ -32,6 +32,20 @@ it("caps claim volume and spread and excludes duplicate coverage", () => {
   expect(calc({ ...p, contract: "another-protection" })).toBe(0);
   expect(calc(p, "Pineway Fuel", true, "2025-05-01T12:00:00Z")).toBe(0);
 });
+it("seeds one evidenced claim awaiting a partner decision", async () => {
+  const { family } = await write((tx) => seedFamily(tx), db);
+  const rows = await db.execute({
+    sql: "SELECT c.status,c.amount,p.reward_status,s.name,r.name file FROM claims c JOIN purchases p ON p.id=c.purchase JOIN receipts r ON r.purchase=p.id JOIN stations s ON s.id=p.station WHERE c.family=?",
+    args: [family],
+  });
+  expect(rows.rows).toHaveLength(1);
+  expect(rows.rows[0]).toMatchObject({
+    status: "pending",
+    amount: 239,
+    name: "Pineway Fuel",
+    file: "pineway-demo-receipt.png",
+  });
+});
 it("pays only an approved evidenced purchase once and reverses its claim on cancellation", async () => {
   const a = { ...(await write((tx) => seedFamily(tx), db)), role: "owner" };
   const station = String(
@@ -73,8 +87,8 @@ it("pays only an approved evidenced purchase once and reverses its claim on canc
   for (let i = 0; i < 2; i++)
     await write((tx) => claimReceipt(tx, a, purchase), db);
   const claims = await db.execute({
-    sql: "SELECT * FROM claims WHERE family=?",
-    args: [a.family],
+    sql: "SELECT * FROM claims WHERE family=? AND purchase=?",
+    args: [a.family, purchase],
   });
   expect(claims.rows).toHaveLength(1);
   const id = String(claims.rows[0].id);

@@ -22,12 +22,12 @@ import type { Snapshot } from "@/server/snapshot";
 export type S = Snapshot;
 export type Purchase = S["purchases"][number];
 export type Offer = S["offers"][number];
-export const prettyDate = (iso: string, long = false) =>
+export const prettyDate = (iso: string, long = false, timeZone = "UTC") =>
   new Intl.DateTimeFormat("en-US", {
     year: long ? "numeric" : undefined,
     month: long ? "long" : "short",
     day: "numeric",
-    timeZone: "UTC",
+    timeZone,
   }).format(new Date(iso));
 export function Brand({ href = "/overview" }: { href?: string }) {
   return (

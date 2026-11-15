@@ -7,7 +7,11 @@ import { connect, migrate, write } from "../src/server/db/client";
 import { snapshot } from "../src/server/snapshot";
 import { seedFamily } from "../src/server/providers/demo";
 import { act } from "../src/server/actions";
-import { rankStations } from "../src/server/domain/trips";
+import {
+  rankStations,
+  stationReason,
+  paydayEstimate,
+} from "../src/server/domain/trips";
 import { report } from "../src/server/domain/report";
 import { redeem, cancelPurchase } from "../src/server/domain/purchases";
 const db = connect("file:" + join(inject("testDirectory"), "planning.db"));
@@ -19,6 +23,61 @@ async function family() {
   return { ...a, role: "owner" };
 }
 describe("planning and rewards", () => {
+  it("records every authorized posted round-up regardless of cashback stage", async () => {
+    const a = await family(),
+      s = await snapshot(a, orm);
+    for (const p of s.purchases) {
+      const amount = p.status === "posted" ? (100 - (p.amount % 100)) % 100 : 0;
+      if (p.status === "posted") expect(p.roundUp).toBe(amount);
+      expect(
+        s.transfers.find((t) => t.purchase === p.id && t.kind === "roundup")
+          ?.amount ?? 0,
+      ).toBe(amount);
+    }
+    expect(s.transfers.some((t) => t.kind === "cashback")).toBe(false);
+  });
+  it("stops new round-ups after consent is revoked and preserves history", async () => {
+    const a = await family(),
+      s = await snapshot(a, orm);
+    expect(s.family.transferConsent).toBe(1);
+    await write(
+      (tx) => act(tx, a, "rules", { roundup: s.goals[0].id, cashback: "" }),
+      db,
+    );
+    const c = s.contracts[0],
+      o = s.offers.find((o) => o.id === c.offer)!;
+    const purchase = await write(
+      (tx) =>
+        redeem(
+          tx,
+          a.family,
+          {
+            code: c.code,
+            driver: a.driver,
+            station: o.allowed[0],
+            fuel: "Gasoline",
+            grade: "Regular 87",
+            volume: 2100,
+            pump: 4000000,
+          },
+          randomUUID(),
+          2100,
+        ),
+      db,
+    );
+    const after = await snapshot(a, orm);
+    expect(after.transfers).toHaveLength(s.transfers.length);
+    expect(after.transfers.some((t) => t.purchase === purchase)).toBe(false);
+  });
+  it("reconciles the wallet comparison to the monthly report", async () => {
+    const a = await family(),
+      s = await snapshot(a, orm);
+    const r = report(s, s.now.slice(0, 7));
+    expect(r.market - r.withFuelLock + r.paid + r.claims + r.rounding).toBe(
+      r.net,
+    );
+    expect(report(s, s.now.slice(0, 7), true).net).toBe(r.net - 699);
+  });
   it("charges physical pre-buy gallons once and restores them on cancellation", async () => {
     const a = await family();
     let s = await snapshot(a, orm);
@@ -65,6 +124,17 @@ describe("planning and rewards", () => {
     expect(commute[0].station.name).toBe("Pineway Fuel");
     expect(school[0].station.name).toBe("Northline Station");
     expect(commute[0].detourCost).toBe(11);
+    expect(stationReason(commute)).toContain("1.6 mi shorter");
+    expect(stationReason(commute)).toContain("$0.22 less");
+    expect(commute[0].total).toBe(commute[0].fuel + 11 - commute[0].cashback);
+    expect(
+      paydayEstimate(
+        "2026-11-16T18:00:00Z",
+        "2026-11-23",
+        "America/Chicago",
+        28,
+      ),
+    ).toEqual({ days: 7, volume: 9800 });
     const diesel = s.cars.find((c) => c.fuel === "Diesel")!;
     expect(
       rankStations(s, "commute", diesel.id, 12000).every(
@@ -104,11 +174,11 @@ describe("planning and rewards", () => {
         const transfer = (await snapshot(a, orm)).transfers.find(
           (t) => t.purchase === p.id && t.kind === "cashback",
         );
-        if (allowed)
+        if (allowed && stage === "confirmed")
           expect(transfer).toMatchObject({
             goal,
             amount: p.reward,
-            status: stage === "pending" ? "pending" : "completed",
+            status: "completed",
           });
         else expect(transfer).toBeUndefined();
       }

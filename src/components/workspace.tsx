@@ -261,7 +261,10 @@ export default function Workspace({ s, section }: { s: S; section: string }) {
               {(section === "overview" ||
                 section === "wallet" ||
                 section === "reports") && (
-                <label className="month-picker">
+                <label
+                  className="month-picker"
+                  title="Statements group transactions by their UTC posting month."
+                >
                   <CalendarDays size={15} />
                   <select
                     aria-label="Reporting month"

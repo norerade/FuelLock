@@ -52,7 +52,17 @@ function formatted(
 }
 export const usd = (cents: number) => formatted(cents, 2, 2, "$");
 export const gallons = (volume: number) => formatted(volume, 3, 0);
-export const perGallon = (price: number) => formatted(price, 6, 2, "$");
+/** Format a microdollar rate (or an exact weighted rate) directly in thousandths. */
+export function priceRatio(numerator: bigint, denominator: bigint) {
+  return formatted(halfUp(numerator, denominator * 1000n), 3, 3, "$");
+}
+export const perGallon = (price: number) => priceRatio(BigInt(price), 1n);
+export function fullUsePrice(cap: number, fees: number, volume: number) {
+  return priceRatio(
+    BigInt(cap) * BigInt(volume) + BigInt(fees) * 10_000_000n,
+    BigInt(volume),
+  );
+}
 export type OfferKind = "lock" | "prebuy";
 export function quote(
   kind: OfferKind,
@@ -96,6 +106,25 @@ export function lockScenario(
   };
 }
 
+export type ScenarioMode = "agreement" | "fill";
+export function protectionScenario(
+  mode: ScenarioMode,
+  offer: { volume: number; cap: number; fee: number; service: number },
+  pump: number,
+  planned: number,
+  available: number,
+  planFee = 0,
+) {
+  const agreement = mode === "agreement";
+  return lockScenario(
+    agreement ? offer.volume : planned,
+    agreement ? offer.volume : available,
+    pump,
+    offer.cap,
+    agreement ? offer.fee + offer.service + planFee : 0,
+  );
+}
+export const familyPlanCents = 699;
 export function cashback(cents: number) {
   return halfUp(BigInt(cents) * 2n, 100n);
 }

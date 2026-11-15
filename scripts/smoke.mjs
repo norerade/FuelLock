@@ -108,9 +108,12 @@ try {
     await nav("Partner console");
     await tab.getByRole("button", { name: "Activate contract" }).click();
     await tab.getByText("No requests awaiting activation.").waitFor();
+    await tab.getByRole("button", { name: "Approve claim" }).click();
+    await tab.getByRole("button", { name: "Pay claim" }).click();
+    await tab.getByText("No receipt claims awaiting a decision.").waitFor();
     await nav("Drivers & vehicles");
-    await tab.getByRole("button", { name: "Invite driver" }).click();
-    await tab.getByRole("button", { name: "Create invitation" }).click();
+    await tab.getByRole("button", { name: "Share driver access" }).click();
+    await tab.getByRole("button", { name: "Create access link" }).click();
     await tab.getByRole("textbox", { name: "Invitation link" }).waitFor();
     const link = await tab
       .getByRole("textbox", { name: "Invitation link" })

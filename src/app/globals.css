@@ -963,6 +963,91 @@ summary {
 .landing-features h2 {
   margin-bottom: 8px;
 }
+.integrations .tag {
+  text-transform: none;
+}
+.integration-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+.integration-row small {
+  display: block;
+}
+.landing-product {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gap);
+  margin: 24px 0;
+  align-items: start;
+}
+@media (min-width: 751px) {
+  .landing-product {
+    grid-template-areas: "pricing calculator" "preview calculator" "disclosure calculator";
+    grid-template-rows: auto auto 1fr;
+  }
+  .landing-product > .panel:first-child {
+    grid-area: pricing;
+  }
+  .landing-preview {
+    grid-area: preview;
+  }
+  .landing-disclosure {
+    grid-area: disclosure;
+  }
+  .landing-calculator {
+    grid-area: calculator;
+  }
+}
+.landing-product h2 {
+  margin-bottom: 14px;
+}
+.landing-product .plan-price {
+  font-size: 32px;
+  font-weight: 640;
+  color: var(--forest);
+}
+.landing-product .plan-price small {
+  font-size: 16px;
+}
+.landing-preview > h2 {
+  margin: 0 0 8px;
+}
+.landing-preview .balance-card {
+  min-height: 190px;
+}
+.landing-preview .balance-amount strong {
+  font-size: 43px;
+}
+.landing-calculator .trip-controls {
+  margin-bottom: 16px;
+}
+.landing-disclosure p + p {
+  margin-top: 14px;
+}
+.payoff-chart {
+  margin: 16px 0 0;
+  min-width: 0;
+}
+.payoff-chart figcaption {
+  font-weight: 620;
+}
+.station-cost {
+  margin: 12px 0;
+}
+.station-cost summary,
+.protection-scenario summary {
+  color: var(--green);
+  font-weight: 620;
+}
+@media (max-width: 750px) {
+  .landing-product {
+    grid-template-columns: 1fr;
+  }
+}
 .landing footer {
   padding: 20px 0;
   border-top: 1px solid var(--line);
@@ -1196,11 +1281,34 @@ summary {
     font-size: 12px;
     padding: 4px 8px;
   }
+  .workspace {
+    height: 100dvh;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  .workspace .main {
+    width: 100%;
+    margin: 0 auto;
+    overflow: auto;
+    min-height: 0;
+    padding-bottom: 18px;
+    scroll-padding-block: 12px;
+  }
+  .topbar .breadcrumb {
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .topbar .breadcrumb b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .topbar .demo-indicator {
+    flex: none;
+    white-space: nowrap;
+  }
   .mobile-dock {
-    position: fixed;
-    bottom: calc(9px + env(safe-area-inset-bottom));
-    left: 50%;
-    transform: translateX(-50%);
+    position: relative;
+    margin: 0 auto calc(5px + env(safe-area-inset-bottom));
     width: min(440px, calc(100% - 12px));
     height: 59px;
     display: grid;
@@ -1290,6 +1398,12 @@ summary {
   }
   .breadcrumb {
     gap: 6px;
+  }
+}
+@media (max-width: 500px) {
+  .topbar .breadcrumb > b,
+  .topbar .breadcrumb > svg {
+    display: none;
   }
 }
 @media (max-width: 365px) {

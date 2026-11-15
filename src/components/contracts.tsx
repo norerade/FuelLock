@@ -1,4 +1,5 @@
 "use client";
+import { ProtectionScenario } from "./protection-scenario";
 import { ClaimList, ReceiptProtection } from "./claims";
 import { useState } from "react";
 import {
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 import {
   breakEvenSpread,
+  fullUsePrice,
   gallons,
   lineCents,
   perGallon,
@@ -60,8 +62,9 @@ function Terms({ s, o }: { s: S; o: Offer }) {
       )}
       {spread !== null && (
         <Fact name="Break-even at full usage">
-          {perGallon(o.cap + spread)}/gal market price · {perGallon(spread)}/gal
-          above {o.kind === "lock" ? "cap" : "prepaid price"}
+          {fullUsePrice(o.cap, fees, o.volume)}/gal market price ·{" "}
+          {fullUsePrice(0, fees, o.volume)}/gal above{" "}
+          {o.kind === "lock" ? "cap" : "prepaid price"}
         </Fact>
       )}
       <Fact name="Accept by">{prettyDate(o.deadline, true)}</Fact>
@@ -77,6 +80,18 @@ function Terms({ s, o }: { s: S; o: Offer }) {
           .map((e) => e.name)
           .join(", ")}
       </Fact>
+      {o.kind === "lock" && (
+        <details>
+          <summary>When does protection pay?</summary>
+          <ProtectionScenario
+            offer={o}
+            available={
+              s.contracts.find((c) => c.offer === o.id && c.status === "active")
+                ?.available
+            }
+          />
+        </details>
+      )}
       <p className="terms">{o.terms}</p>
       <small>
         Terms v{o.version} · {o.source}
@@ -241,6 +256,10 @@ export function Protection({ s }: { s: S }) {
                     {o.kind === "lock"
                       ? usd(o.fee + o.service) + " in fees"
                       : usd(lineCents(o.volume, o.cap)) + " prepaid"}
+                  </p>
+                  <p>
+                    ≈{fullUsePrice(o.cap, o.fee + o.service, o.volume)}/gal with
+                    fees at full use
                   </p>
                   <Modal
                     title={o.name}

@@ -127,6 +127,7 @@ export async function act(
         "Reward has already changed. Refresh the wallet.",
         409,
       );
+      if (stage === "pending") return { message: "Cashback confirmed." };
       const goal = await transferGoal(
         tx,
         family,

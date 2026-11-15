@@ -75,6 +75,21 @@ export function fingerprint(
     ]),
   );
 }
+async function postRoundUp(
+  tx: Transaction,
+  family: string,
+  purchase: string,
+  amount: number,
+  at: string,
+) {
+  const roundUp = (100 - (amount % 100)) % 100;
+  const goal = await transferGoal(tx, family, purchase, "roundup", roundUp, at);
+  if (goal)
+    await tx.execute({
+      sql: "UPDATE purchases SET round_up=?,goal=? WHERE family=? AND id=?",
+      args: [roundUp, goal, family, purchase],
+    });
+}
 export async function insertPurchase(
   tx: Transaction,
   entry: {
@@ -131,13 +146,7 @@ export async function insertPurchase(
       null,
     ],
   });
-  const roundUp = (100 - (e.amount % 100)) % 100;
-  const goal = await transferGoal(tx, e.family, id, "roundup", roundUp, e.at);
-  if (goal)
-    await tx.execute({
-      sql: "UPDATE purchases SET round_up=?,goal=? WHERE id=?",
-      args: [roundUp, goal, id],
-    });
+  await postRoundUp(tx, e.family, id, e.amount, e.at);
   return id;
 }
 export async function redeem(
@@ -242,6 +251,9 @@ export async function redeem(
         id,
       ],
     });
+    // Reprice the same transfer after matching a receipt to a partner redemption.
+    // Without current consent, the preceding UPDATE can only reduce its original amount.
+    await postRoundUp(tx, family, id, q.fuel, now);
   } else {
     id = await insertPurchase(tx, {
       ...sale,

@@ -7,6 +7,7 @@ export const routes = [
     from: "Maple Heights",
     to: "Downtown office",
     miles: 18,
+    daysOfWeek: [1, 2, 3, 4, 5],
     detours: { "2": 8, "5": 24, "9": 10 },
   },
   {
@@ -15,6 +16,7 @@ export const routes = [
     from: "Maple Heights",
     to: "Cedar Elementary",
     miles: 7,
+    daysOfWeek: [1, 2, 3, 4, 5],
     detours: { "2": 35, "5": 7, "9": 13 },
   },
   {
@@ -23,6 +25,7 @@ export const routes = [
     from: "Maple Heights",
     to: "Lake Market",
     miles: 12,
+    daysOfWeek: [6],
     detours: { "2": 40, "5": 25, "9": 3 },
   },
 ] as const;

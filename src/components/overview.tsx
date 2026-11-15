@@ -1,4 +1,5 @@
 "use client";
+import { FamilyPlanToggle, useFamilyPlan } from "./family-plan";
 import { BalanceCard } from "./balance-card";
 import { SpendingChart } from "./spending-chart";
 import {
@@ -11,7 +12,13 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import { defaultTrip, rankStations } from "@/server/domain/trips";
+import { StationCost } from "./station-cost";
+import {
+  defaultTrip,
+  rankStations,
+  stationReason,
+  paydayEstimate,
+} from "@/server/domain/trips";
 import {
   decimalText,
   halfUp,
@@ -65,7 +72,8 @@ export function BudgetEditor({
   );
 }
 export function Overview({ s, month }: { s: S; month: string }) {
-  const r = report(s, month);
+  const includePlan = useFamilyPlan();
+  const r = report(s, month, includePlan);
   const c = s.contracts.find(
     (c) =>
       c.status === "active" &&
@@ -104,7 +112,9 @@ export function Overview({ s, month }: { s: S; month: string }) {
     {
       title: "Net savings",
       value: usd(r.net),
-      detail: "After fees and paid rewards",
+      detail: includePlan
+        ? "Includes modeled Family plan"
+        : "After fees and paid rewards",
       icon: TrendingUp,
       tone: "lilac",
     },
@@ -119,21 +129,25 @@ export function Overview({ s, month }: { s: S; month: string }) {
   const percent = r.budget
     ? halfUp(BigInt(r.total) * 100n, BigInt(r.budget))
     : 0;
-  const best = rankStations(
+  const stops = rankStations(
     s,
     defaultTrip.routeId,
     s.cars[0]?.id ?? "",
     defaultTrip.volume,
-  )[0];
-  const days = s.family.nextPayday
-    ? (Date.parse(s.family.nextPayday) - Date.parse(s.now.slice(0, 10))) /
-      86400000
-    : null;
+  );
+  const best = stops[0];
+  const forecast = paydayEstimate(
+    s.now,
+    s.family.nextPayday,
+    s.family.timeZone,
+    s.cars[0]?.mpg ?? 0,
+  );
+  const days = forecast?.days ?? null;
   return (
     <div className="overview-stack">
       <div className="spotlight-grid">
         <BalanceCard
-          artwork
+          artwork={s.actor.role === "owner"}
           title="Monthly budget"
           label={
             r.remaining < 0
@@ -174,11 +188,6 @@ export function Overview({ s, month }: { s: S; month: string }) {
           )}
         </BalanceCard>
         <section className="fuel-pass">
-          <div className="pass-print" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </div>
           <div className="pass-issuer">
             <span>
               <ShieldCheck size={17} /> Partner Lock
@@ -245,10 +254,24 @@ export function Overview({ s, month }: { s: S; month: string }) {
         {best ? (
           <>
             <h3>{best.station.name}</h3>
+            <p>{stationReason(stops)}</p>
             <Fact name="Planned fill-up">
               {gallons(defaultTrip.volume)} gal · {s.cars[0].name}
             </Fact>
-            <Fact name="Estimated total incl. detour">{usd(best.total)}</Fact>
+            <Fact name="Estimated net cost">{usd(best.total)}</Fact>
+            <StationCost stop={best} />
+            {forecast && forecast.days >= 0 && (
+              <p>
+                <strong>
+                  Need until payday ≈ {gallons(forecast.volume)} gal
+                </strong>
+                <br />
+                <small>
+                  Demo schedule: weekday commute and school round trips,
+                  Saturday errands · {s.cars[0].mpg} MPG.
+                </small>
+              </p>
+            )}
             <Fact name="Protected gallons after this stop">
               {gallons(best.protectedAfter)} gal
             </Fact>
@@ -270,7 +293,8 @@ export function Overview({ s, month }: { s: S; month: string }) {
   );
 }
 export function WalletPage({ s, month }: { s: S; month: string }) {
-  const r = report(s, month);
+  const includePlan = useFamilyPlan();
+  const r = report(s, month, includePlan);
   const rows = s.purchases.filter((p) => p.status === "posted");
   const rewardTotal = (stage: "pending" | "confirmed" | "paid") =>
     rows.reduce(
@@ -287,6 +311,7 @@ export function WalletPage({ s, month }: { s: S; month: string }) {
     ["Pre-buy price difference", r.prebuyEffect],
     ["Paid cashback", r.paid],
     ["Paid receipt claims", r.claims],
+    ["Family plan · modeled", -r.planFee],
   ];
   return (
     <div className="stack">
@@ -314,8 +339,47 @@ export function WalletPage({ s, month }: { s: S; month: string }) {
             {usd(r.net)}
           </div>
           <p>For purchases in the selected month</p>
+          <FamilyPlanToggle />
         </section>
       </div>
+      <section className="panel">
+        <SectionTitle
+          title="Without FuelLock vs with FuelLock"
+          sub="Compare the same gallons purchased in the selected month."
+        />
+        <Fact name="Without FuelLock · at posted pump prices">
+          {usd(r.market)}
+        </Fact>
+        <Fact name="Actually paid at pump">{usd(r.fuel)}</Fact>
+        {r.prepaidUsed > 0 && (
+          <Fact name="Cost of prepaid gallons used">{usd(r.prepaidUsed)}</Fact>
+        )}
+        <Fact name="Agreement fees">{usd(r.fees)}</Fact>
+        {r.planFee > 0 && (
+          <Fact name="Family plan · modeled">{usd(r.planFee)}</Fact>
+        )}
+        <Fact name="With FuelLock · before rewards">{usd(r.withFuelLock)}</Fact>
+        <Fact name="Protection benefit before fees">{usd(r.benefit)}</Fact>
+        {r.prebuyEffect !== 0 && (
+          <Fact name="Pre-buy price difference">{usd(r.prebuyEffect)}</Fact>
+        )}
+        <Fact name="Paid cashback">{usd(r.paid)}</Fact>
+        {r.claims > 0 && (
+          <Fact name="Paid receipt reimbursements">{usd(r.claims)}</Fact>
+        )}
+        {r.rounding !== 0 && (
+          <Fact name="Posted line rounding">{usd(r.rounding)}</Fact>
+        )}
+        <Fact name="Net savings after fees and paid rewards">
+          <strong>{usd(r.net)}</strong>
+        </Fact>
+        {r.upfront > 0 && (
+          <p>
+            {usd(r.upfront)} was prepaid this month. Only the cost of gallons
+            used enters this comparison.
+          </p>
+        )}
+      </section>
       <div className="wallet-details">
         <section className="panel">
           <SectionTitle title="Monthly breakdown" />
@@ -346,7 +410,8 @@ export function WalletPage({ s, month }: { s: S; month: string }) {
                 <div className="grow">
                   <b>{s.stations.find((t) => t.id === p.station)?.name}</b>
                   <small>
-                    {prettyDate(p.at)} · {usd(p.amount)} fuel
+                    {prettyDate(p.at, false, s.family.timeZone)} ·{" "}
+                    {usd(p.amount)} fuel
                   </small>
                 </div>
                 <strong>{usd(p.reward)}</strong>

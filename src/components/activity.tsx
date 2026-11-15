@@ -9,7 +9,7 @@ import {
   ReceiptText,
   Upload,
 } from "lucide-react";
-import { gallons, perGallon, usd } from "@/server/domain/money";
+import { gallons, perGallon, usd, priceRatio } from "@/server/domain/money";
 import {
   type S,
   type Purchase,
@@ -23,6 +23,19 @@ import {
   prettyDate,
   useAction,
 } from "./ui";
+function paidRate(s: S, p: Purchase) {
+  if (p.status !== "posted") return "—";
+  const contract = s.contracts.find((c) => c.id === p.contract);
+  const offer = s.offers.find((o) => o.id === contract?.offer);
+  if (!offer || !p.covered) return perGallon(p.pump);
+  const coveredPrice =
+    offer.kind === "prebuy" ? 0 : Math.min(p.pump, offer.cap);
+  return priceRatio(
+    BigInt(p.covered) * BigInt(coveredPrice) +
+      BigInt(p.volume - p.covered) * BigInt(p.pump),
+    BigInt(p.volume),
+  );
+}
 function EvidenceForm({ s, p }: { s: S; p?: Purchase }) {
   const a = useAction();
   const [source, setSource] = useState("Receipt"),
@@ -114,7 +127,7 @@ function EvidenceForm({ s, p }: { s: S; p?: Purchase }) {
               />
             </Field>
           </div>
-          <Field name="Purchase date and time">
+          <Field name="Purchase date and time (device local time)">
             <input
               type="datetime-local"
               name="at"
@@ -173,7 +186,7 @@ export function PurchaseDetail({
       description={
         s.stations.find((t) => t.id === p.station)?.name +
         " · " +
-        prettyDate(p.at, true)
+        prettyDate(p.at, true, s.family.timeZone)
       }
       trigger={trigger}
     >
@@ -181,13 +194,28 @@ export function PurchaseDetail({
         <Fact name="Driver">
           {s.drivers.find((d) => d.id === p.driver)?.name}
         </Fact>
-        <Fact name="Recorded at">
-          {new Date(p.at).toLocaleString("en-US", { timeZone: "UTC" })} UTC
+        <Fact name="Family local time">
+          {new Intl.DateTimeFormat("en-US", {
+            timeZone: s.family.timeZone,
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            timeZoneName: "short",
+          }).format(new Date(p.at))}{" "}
+          ({s.family.timeZone})
         </Fact>
         <Fact name="Fuel">
           {p.grade} · {gallons(p.volume)} gal
         </Fact>
         <Fact name="Pump price">{perGallon(p.pump)}/gal</Fact>
+        <Fact name="You paid /gal">{paidRate(s, p)}</Fact>
+        {p.covered > 0 && p.covered < p.volume && (
+          <p>
+            Paid price is the weighted average of covered and uncovered gallons.
+          </p>
+        )}
         <Fact name="Protected / prepaid volume">{gallons(p.covered)} gal</Fact>
         <Fact name="Uncovered volume">{gallons(p.volume - p.covered)} gal</Fact>
         <Fact name="Fuel paid">{usd(p.amount)}</Fact>
@@ -260,7 +288,7 @@ export function ActivityList({ s, items }: { s: S; items: Purchase[] }) {
               <span className="activity-name">
                 <b>{s.stations.find((t) => t.id === p.station)?.name}</b>
                 <small>
-                  {prettyDate(p.at)} ·{" "}
+                  {prettyDate(p.at, false, s.family.timeZone)} ·{" "}
                   {s.drivers.find((d) => d.id === p.driver)?.name}
                 </small>
               </span>
@@ -336,7 +364,8 @@ export function Activity({ s }: { s: S }) {
             <tr>
               {[
                 "Fill-up",
-                "Price/gal",
+                "Pump price",
+                "You paid /gal",
                 "Protected gallons",
                 "Benefit",
                 "Source",
@@ -362,7 +391,7 @@ export function Activity({ s }: { s: S }) {
                           {s.stations.find((st) => st.id === p.station)?.name}
                         </b>
                         <small>
-                          {prettyDate(p.at)} ·{" "}
+                          {prettyDate(p.at, false, s.family.timeZone)} ·{" "}
                           {s.drivers.find((d) => d.id === p.driver)?.name}
                         </small>
                         <strong>{usd(p.amount)}</strong>
@@ -370,7 +399,8 @@ export function Activity({ s }: { s: S }) {
                     }
                   />
                 </td>
-                <td data-label="Price/gal">{perGallon(p.pump)}</td>
+                <td data-label="Pump price">{perGallon(p.pump)}</td>
+                <td data-label="You paid /gal">{paidRate(s, p)}</td>
                 <td data-label="Protected gallons">{gallons(p.covered)} gal</td>
                 <td data-label="Benefit">
                   {usd(p.status === "posted" ? p.benefit : 0)}

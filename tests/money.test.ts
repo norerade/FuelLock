@@ -7,6 +7,8 @@ import {
   quote,
   usd,
   perGallon,
+  protectionScenario,
+  fullUsePrice,
 } from "../src/server/domain/money";
 describe("integer money", () => {
   it("parses fractional pump prices and gallons exactly", () => {
@@ -46,6 +48,25 @@ describe("integer money", () => {
     });
     expect(lockScenario(12000, 8000, 3500000, 3000000, 400).net).toBe(0);
     expect(lockScenario(12000, 0, 4000000, 3000000, 400).spread).toBeNull();
+  });
+  it("separates the agreement break-even from the marginal cost of an active lock", () => {
+    const offer = { cap: 3299000, volume: 80000, fee: 350, service: 50 };
+    const calc = (mode: "agreement" | "fill", pump: number, plan = 0) =>
+      protectionScenario(mode, offer, pump, 12000, 10000, plan);
+    expect(calc("agreement", 3199000).net).toBe(-400);
+    expect(calc("agreement", 3349000).net).toBe(0);
+    expect(calc("agreement", 3399000).net).toBe(400);
+    expect(calc("agreement", 3399000, 699).net).toBe(-299);
+    expect(calc("fill", 3199000, 699)).toMatchObject({
+      net: 0,
+      fees: 0,
+      covered: 10000,
+      regular: 2000,
+    });
+    expect(calc("fill", 3399000, 699).net).toBe(100);
+    expect(fullUsePrice(3399000, 175, 40000)).toBe("$3.443");
+    expect(fullUsePrice(0, 1, 20001)).toBe("$0.000");
+    expect(perGallon(3000000)).toBe("$3.000");
   });
   it("charges only uncovered prepaid volume at the pump", () => {
     expect(quote("prebuy", 8500, 8000, 4000000, 3200000).fuel).toBe(200);

@@ -65,7 +65,8 @@ export function ReceiptProtection({ s }: { s: S }) {
               <div className="grow">
                 <b>{station}</b>
                 <small>
-                  {prettyDate(p.at)} · {gallons(p.volume)} gal
+                  {prettyDate(p.at, false, s.family.timeZone)} ·{" "}
+                  {gallons(p.volume)} gal
                 </small>
               </div>
               <b>{usd(benefit)}</b>
@@ -110,7 +111,7 @@ export function ClaimList({ s, partner = false }: { s: S; partner?: boolean }) {
               <div className="grow">
                 <b>{s.stations.find((st) => st.id === p.station)?.name}</b>
                 <small>
-                  {prettyDate(p.at)} · {c.version}
+                  {prettyDate(p.at, false, s.family.timeZone)} · {c.version}
                 </small>
               </div>
               <strong>{usd(c.amount)}</strong>
