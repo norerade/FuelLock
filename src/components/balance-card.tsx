@@ -7,17 +7,18 @@ export function BalanceCard({
   label,
   cents,
   children,
+  artwork = false,
 }: {
   title: string;
   label: string;
   cents: number;
+  artwork?: boolean;
   children: ReactNode;
 }) {
   const amount = usd(cents);
   return (
-    <section className="balance-card">
-      <div className="balance-rings" aria-hidden="true" />
-      <div className="token-art" aria-hidden="true" />
+    <section className={artwork ? "balance-card illustrated" : "balance-card"}>
+      {artwork && <div className="token-art" aria-hidden="true" />}
       <header>
         <span className="balance-symbol">
           <Droplet size={17} />

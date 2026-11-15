@@ -1,4 +1,9 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  sqliteView,
+  text,
+  integer,
+} from "drizzle-orm/sqlite-core";
 const id = () => text("id").primaryKey();
 const household = () => text("family").notNull();
 const n = (key: string) => integer(key).notNull();
@@ -10,6 +15,11 @@ export const families = sqliteTable("families", {
   plan: s("plan"),
   demo: n("demo"),
   created: s("created"),
+  nextPayday: text("next_payday"),
+  transferLimit: n("transfer_limit"),
+  minimumBalance: n("minimum_balance"),
+  transfersPaused: n("transfers_paused"),
+  transferConsent: n("transfer_consent"),
 });
 export const drivers = sqliteTable("drivers", {
   id: id(),
@@ -90,6 +100,15 @@ export const purchases = sqliteTable("purchases", {
   goal: text("goal"),
   rewardGoal: text("reward_goal"),
 });
+export const transfers = sqliteView("savings_transfers", {
+  family: household(),
+  purchase: s("purchase"),
+  goal: s("goal"),
+  kind: s("kind"),
+  amount: n("amount"),
+  at: s("at"),
+  status: s("status"),
+}).existing();
 export const receipts = sqliteTable("receipts", {
   id: id(),
   family: household(),

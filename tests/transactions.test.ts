@@ -173,8 +173,8 @@ describe("household transaction boundary", () => {
     expect(
       (
         await db.execute({
-          sql: "SELECT count(*) n FROM receipts WHERE family=?",
-          args: [family],
+          sql: "SELECT count(*) n FROM receipts WHERE family=? AND purchase=?",
+          args: [family, bank.purchase],
         })
       ).rows[0].n,
     ).toBe(1);

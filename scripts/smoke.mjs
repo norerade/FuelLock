@@ -81,6 +81,15 @@ try {
         .getByRole("link", { name: label, exact: true })
         .click();
     }
+    for (const persona of ["Jamie", "Alex"]) {
+      if (width < 821)
+        await tab.getByRole("button", { name: "Open navigation" }).click();
+      await tab.getByRole("button", { name: "View as " + persona }).click();
+      await tab
+        .locator(".profile")
+        .getByText(persona + " Morgan")
+        .waitFor({ state: "attached" });
+    }
     await tab.getByRole("button", { name: "View contract" }).click();
     const contractCode = await tab.locator(".contract-code strong").innerText();
     await tab.getByRole("button", { name: "Close dialog" }).click();
@@ -89,7 +98,7 @@ try {
     const card = tab.locator("article").filter({
       has: tab.getByRole("heading", { name: "Diesel Family Lock" }),
     });
-    await card.getByRole("button", { name: "Offer details" }).click();
+    await card.getByRole("button", { name: "Choose" }).click();
     await tab.getByRole("button", { name: "Request protection" }).click();
     await tab
       .getByRole("dialog")
@@ -124,6 +133,19 @@ try {
         .locator("aside")
         .getByRole("button", { name: "Close navigation" })
         .click();
+    assert.equal(
+      await observer.getByRole("button", { name: "View as Alex" }).count(),
+      0,
+    );
+    assert.equal(
+      (
+        await second.request.post(new URL("/api/demo/persona", base).href, {
+          form: { driver: "" },
+          maxRedirects: 0,
+        })
+      ).status(),
+      403,
+    );
     const balance = observer
       .locator(".metric")
       .filter({ hasText: "Protected gallons" })
@@ -174,7 +196,7 @@ try {
     await tab.getByRole("button", { name: "Confirm cancellation" }).click();
     await tab
       .getByRole("dialog")
-      .getByText("cancelled", { exact: true })
+      .getByText("Cancelled", { exact: true })
       .waitFor();
     await observer.waitForFunction(
       (val) =>
@@ -222,7 +244,7 @@ try {
     await tab
       .locator("article")
       .filter({ has: tab.getByRole("heading", { name: "Pineway Pre-buy" }) })
-      .getByRole("button", { name: "Offer details" })
+      .getByRole("button", { name: "Choose" })
       .click();
     await tab.getByRole("button", { name: "Request pre-buy" }).click();
     await tab

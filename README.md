@@ -38,7 +38,7 @@ The default database is `file:data/fuellock.db`. For an existing Turso database,
 
 ## Product and business model
 
-The Family pilot has no monthly subscription. Partner offers disclose their protection fee and service fee before acceptance. Those fees are earned on activation in the simulation. Pre-buy has a separate upfront purchase price for physical gallons at the named merchant. Cashback is a simulated partner-funded 2% of the fuel amount paid at the pump.
+The Family plan costs $6.99 per month, with $0 charged during the demo. The hypothesis is a $4.00 contribution per family at a $2.99 monthly variable cost limit. Partner offers disclose their protection fee and service fee before acceptance. Those fees are earned on activation in the simulation. Pre-buy has a separate upfront purchase price for physical gallons at the named merchant. Cashback is a simulated partner-funded 2% of the fuel amount paid at the pump.
 
 | Screen | Working actions |
 | --- | --- |

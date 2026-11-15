@@ -72,13 +72,60 @@ describe("planning and rewards", () => {
       ),
     ).toBe(true);
   });
+  it("reserves and completes simulated transfers only with consent, cap and budget headroom", async () => {
+    const cases: [Record<string, string | undefined>, boolean][] = [
+      [{ consent: undefined }, false],
+      [{ paused: "on" }, false],
+      [{ monthlyLimit: "0.01" }, false],
+      [{ minimumBalance: "320.00" }, false],
+      [{}, true],
+    ];
+    for (const [rules, allowed] of cases) {
+      const a = await family();
+      const s = await snapshot(a, orm);
+      const goal = s.goals[0].id,
+        p = s.purchases.find(
+          (p) => p.status === "posted" && p.rewardStatus === "pending",
+        )!;
+      await write(
+        (tx) =>
+          act(tx, a, "rules", {
+            roundup: goal,
+            cashback: goal,
+            consent: "on",
+            monthlyLimit: "25.00",
+            minimumBalance: "0",
+            ...rules,
+          }),
+        db,
+      );
+      for (const stage of ["pending", "confirmed"]) {
+        await write((tx) => act(tx, a, "reward", { id: p.id, stage }), db);
+        const transfer = (await snapshot(a, orm)).transfers.find(
+          (t) => t.purchase === p.id && t.kind === "cashback",
+        );
+        if (allowed)
+          expect(transfer).toMatchObject({
+            goal,
+            amount: p.reward,
+            status: stage === "pending" ? "pending" : "completed",
+          });
+        else expect(transfer).toBeUndefined();
+      }
+      await write((tx) => cancelPurchase(tx, a.family, p.id), db);
+      expect(
+        (await snapshot(a, orm)).transfers.some((t) => t.purchase === p.id),
+      ).toBe(false);
+    }
+  });
   it("routes paid cashback once and prevents duplicate transitions or foreign goals", async () => {
     const a = await family();
     let s = await snapshot(a, orm);
     const goal = s.goals[0],
       p = s.purchases.find((p) => p.rewardStatus === "pending")!;
     await write(
-      (tx) => act(tx, a, "rules", { roundup: "", cashback: goal.id }),
+      (tx) =>
+        act(tx, a, "rules", { roundup: "", cashback: goal.id, consent: "on" }),
       db,
     );
     for (const stage of ["pending", "confirmed"])

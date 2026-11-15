@@ -120,6 +120,9 @@ export default function Workspace({ s, section }: { s: S; section: string }) {
     return () => window.removeEventListener("keydown", close);
   }, [open]);
   const driver = s.drivers.find((d) => d.id === s.actor.driver)!;
+  const otherPersona = s.drivers.find(
+    (d) => d.role === (s.actor.role === "owner" ? "driver" : "owner"),
+  );
   const title = titles[section];
   const current = groups
     .flatMap((g) => g.items)
@@ -196,6 +199,22 @@ export default function Workspace({ s, section }: { s: S; section: string }) {
             About FuelLock
             <ChevronRight size={14} />
           </Link>
+          {s.actor.canSwitchPersona && otherPersona && (
+            <form
+              method="post"
+              action="/api/demo/persona"
+              className="persona-form"
+            >
+              <input
+                type="hidden"
+                name="driver"
+                value={otherPersona.role === "owner" ? "" : otherPersona.id}
+              />
+              <button className="secondary small" type="submit">
+                View as {otherPersona.name.split(" ")[0]}
+              </button>
+            </form>
+          )}
           <div className="profile">
             <span className="avatar">
               {driver.name

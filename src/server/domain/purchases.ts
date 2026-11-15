@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { Transaction } from "@libsql/client";
+import { transferGoal } from "./savings";
 import { cashback, quote, type OfferKind } from "./money";
 import { requireThat, type Sale } from "./validation";
 export const digest = (value: string | Buffer) =>
@@ -94,12 +95,7 @@ export async function insertPurchase(
   },
 ) {
   const e = entry;
-  const goal = (
-    await tx.execute({
-      sql: "SELECT id FROM goals WHERE family=? AND auto=1",
-      args: [e.family],
-    })
-  ).rows[0];
+
   const id = randomUUID();
   const hash = fingerprint(
     e.driver,
@@ -131,10 +127,17 @@ export async function insertPurchase(
       e.at,
       e.source,
       hash,
-      goal ? (100 - (e.amount % 100)) % 100 : 0,
-      goal?.id ?? null,
+      0,
+      null,
     ],
   });
+  const roundUp = (100 - (e.amount % 100)) % 100;
+  const goal = await transferGoal(tx, e.family, id, "roundup", roundUp, e.at);
+  if (goal)
+    await tx.execute({
+      sql: "UPDATE purchases SET round_up=?,goal=? WHERE id=?",
+      args: [roundUp, goal, id],
+    });
   return id;
 }
 export async function redeem(
@@ -227,7 +230,7 @@ export async function redeem(
       args: [id],
     });
     await tx.execute({
-      sql: `UPDATE purchases SET contract=?, covered=?,amount=?,benefit=?,market=?,reward=?,round_up=CASE WHEN goal IS NULL THEN 0 ELSE (100-?%100)%100 END,source='Partner + receipt' WHERE id=?`,
+      sql: `UPDATE purchases SET contract=?, covered=?,amount=?,benefit=?,market=?,reward=?,round_up=CASE WHEN goal IS NULL THEN 0 ELSE MIN(round_up,(100-?%100)%100) END,source='Partner + receipt' WHERE id=?`,
       args: [
         q.contract,
         q.covered,

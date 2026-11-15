@@ -5,12 +5,12 @@
 :root {
   color-scheme: light;
   --ink: #142f36;
-  --muted: #5d7075;
+  --muted: #425f60;
   --green: #096b6b;
   --forest: #103f46;
-  --line: #dce4e2;
-  --page: #f5f7f5;
-  --white: #fff;
+  --line: #c8d9d3;
+  --page: #e5f0ea;
+  --surface: #f6faf6;
   --gold: #ffdb73;
   --rail: 225px;
   --radius: 21px;
@@ -94,6 +94,7 @@ p {
   line-height: 1.55;
 }
 small {
+  font-size: 12px;
   color: var(--muted);
 }
 b,
@@ -182,7 +183,7 @@ svg {
 .household-block small,
 .profile small {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   color: #aec5c4;
 }
 .household-block > div,
@@ -221,8 +222,8 @@ svg {
 }
 .nav-group > span {
   display: block;
-  font-size: 9px;
-  color: #9ab7b8;
+  font-size: 12px;
+  color: #bed5d2;
   letter-spacing: 0.13em;
   font-weight: 650;
   margin: 0 12px 7px;
@@ -271,6 +272,15 @@ svg {
 .sidebar-bottom > a svg:last-child {
   margin-left: auto;
 }
+.persona-form button {
+  width: 100%;
+  color: #e6f5ef;
+  background: #204a50;
+  border-color: #507477;
+}
+.persona-form button:hover {
+  background: #2b5d61;
+}
 .profile {
   display: flex;
   align-items: center;
@@ -284,7 +294,7 @@ svg {
   height: 35px;
   border-radius: 50%;
   font-weight: 720;
-  font-size: 11px;
+  font-size: 12px;
   color: #234e50;
   background: linear-gradient(150deg, #d7f0e0, #a7c6c0);
   border: 1px solid #c9ddcf;
@@ -302,7 +312,7 @@ svg {
   height: 58px;
   padding: 0 clamp(21px, 2.8vw, 44px);
   border-bottom: 1px solid var(--line);
-  background: #ffffffb8;
+  background: #eff7f1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -325,7 +335,7 @@ svg {
 }
 .breadcrumb {
   gap: 10px;
-  color: #66787c;
+  color: #496563;
   font-size: 12px;
 }
 .breadcrumb b {
@@ -337,7 +347,7 @@ svg {
   display: none;
 }
 .demo-indicator {
-  font-size: 11px;
+  font-size: 12px;
   color: #365e5d;
   border: 1px solid #d5e7e2;
   background: #edf6f0;
@@ -404,7 +414,7 @@ svg {
 .secondary,
 .month-picker,
 .filters select {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid #d7e1df;
   color: #28474b;
 }
@@ -417,7 +427,7 @@ svg {
 .secondary.small {
   min-height: 31px;
   padding: 6px 11px;
-  font-size: 11.5px;
+  font-size: 12px;
 }
 .text-link {
   color: #0b6467;
@@ -447,7 +457,7 @@ svg {
 }
 .panel {
   min-width: 0;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 22px;
@@ -506,7 +516,7 @@ progress {
 .hero-label {
   gap: 7px;
   color: #ffdf86;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 680;
   letter-spacing: 0.12em;
 }
@@ -555,7 +565,7 @@ progress {
 .list-line small {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 2px;
 }
 .activity-grade,
@@ -593,7 +603,7 @@ progress {
   font-weight: 600;
 }
 .tabs .selected {
-  background: #fff;
+  background: var(--surface);
   color: #164a4c;
   box-shadow: 0 2px 4px #173f4b12;
 }
@@ -620,7 +630,7 @@ progress {
 .offer > small {
   text-transform: uppercase;
   letter-spacing: 0.09em;
-  font-size: 10px;
+  font-size: 12px;
 }
 .offer h2 {
   margin: 6px 0;
@@ -649,7 +659,7 @@ progress::-webkit-progress-value {
   display: inline-flex;
   width: fit-content;
   gap: 4px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
   border-radius: 20px;
   padding: 4px 9px;
@@ -713,7 +723,7 @@ progress::-webkit-progress-value {
 .contract-code small {
   font-weight: 650;
   letter-spacing: 0.1em;
-  font-size: 9px;
+  font-size: 12px;
 }
 .contract-code strong {
   font-family: ui-monospace, monospace;
@@ -725,7 +735,7 @@ progress::-webkit-progress-value {
 }
 .balance-strip small {
   text-transform: capitalize;
-  font-size: 11px;
+  font-size: 12px;
 }
 .list-line {
   display: flex;
@@ -775,7 +785,7 @@ progress::-webkit-progress-value {
 .filters select {
   width: 100%;
   min-width: 0;
-  background: white;
+  background: var(--surface);
   border: 1px solid #c9d8d6;
   border-radius: 10px;
   padding: 9px 10px;
@@ -787,6 +797,7 @@ progress::-webkit-progress-value {
   font-size: 12px;
 }
 .filters {
+  flex-wrap: wrap;
   gap: 8px;
   margin: 8px 0 14px;
 }
@@ -801,7 +812,7 @@ progress::-webkit-progress-value {
   gap: 6px;
 }
 .copy small {
-  font-size: 10px;
+  font-size: 12px;
 }
 .empty,
 .inline-muted,
@@ -840,7 +851,7 @@ progress::-webkit-progress-value {
   width: min(480px, calc(100vw - 24px));
   max-height: 88dvh;
   overflow: auto;
-  background: white;
+  background: var(--surface);
   padding: 23px;
   border-radius: 21px;
   box-shadow: 0 15px 80px #152d302b;
@@ -892,7 +903,7 @@ summary {
 .entry-card {
   margin: 12vh auto;
   padding: 28px;
-  background: white;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
   max-width: 470px;
@@ -1043,7 +1054,7 @@ summary {
   gap: 16px;
 }
 .landing-features section {
-  background: white;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 19px;
   padding: 22px;
@@ -1182,7 +1193,7 @@ summary {
     font-size: 18px;
   }
   .demo-indicator {
-    font-size: 10px;
+    font-size: 12px;
     padding: 4px 8px;
   }
   .mobile-dock {
@@ -1190,13 +1201,13 @@ summary {
     bottom: calc(9px + env(safe-area-inset-bottom));
     left: 50%;
     transform: translateX(-50%);
-    width: min(440px, calc(100% - 24px));
+    width: min(440px, calc(100% - 12px));
     height: 59px;
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 4px;
     padding: 4px;
-    background: #ffffffed;
+    background: #f0f8f2f5;
     backdrop-filter: blur(16px);
     border: 1px solid #cfdcda;
     border-radius: 20px;
@@ -1211,7 +1222,7 @@ summary {
     flex-direction: column;
     gap: 1px;
     border-radius: 15px;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 600;
     color: #50666a;
   }
@@ -1233,7 +1244,7 @@ summary {
     gap: 9px;
   }
   .activity-row small {
-    font-size: 10.5px;
+    font-size: 12px;
   }
   .list-line {
     flex-wrap: wrap;
@@ -1255,7 +1266,7 @@ summary {
     gap: 0;
   }
   .tabs button {
-    font-size: 11.5px;
+    font-size: 12px;
     padding: 8px 9px;
   }
   .modal {

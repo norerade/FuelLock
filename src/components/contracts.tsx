@@ -9,7 +9,13 @@ import {
   LockKeyhole,
   Ticket,
 } from "lucide-react";
-import { gallons, lineCents, perGallon, usd } from "@/server/domain/money";
+import {
+  breakEvenSpread,
+  gallons,
+  lineCents,
+  perGallon,
+  usd,
+} from "@/server/domain/money";
 import {
   type S,
   type Offer,
@@ -26,6 +32,9 @@ import {
   Empty,
 } from "./ui";
 function Terms({ s, o }: { s: S; o: Offer }) {
+  const fees = o.fee + o.service;
+  const fullVolumeCost = lineCents(o.volume, o.cap) + fees;
+  const spread = breakEvenSpread(fees, o.volume);
   return (
     <div className="facts">
       <Fact name="Provider">{o.partner} · simulated</Fact>
@@ -41,9 +50,23 @@ function Terms({ s, o }: { s: S; o: Offer }) {
       )}
       <Fact name="Protection fee">{usd(o.fee)}</Fact>
       <Fact name="Service fee">{usd(o.service)}</Fact>
+      <Fact name="Total due at activation">
+        {usd(o.kind === "prebuy" ? fullVolumeCost : fees)}
+      </Fact>
+      {o.kind === "lock" && (
+        <Fact name="Maximum cost for full eligible volume, including fees">
+          {usd(fullVolumeCost)}
+        </Fact>
+      )}
+      {spread !== null && (
+        <Fact name="Break-even at full usage">
+          {perGallon(o.cap + spread)}/gal market price · {perGallon(spread)}/gal
+          above {o.kind === "lock" ? "cap" : "prepaid price"}
+        </Fact>
+      )}
       <Fact name="Accept by">{prettyDate(o.deadline, true)}</Fact>
       <Fact name="Contract term">
-        {prettyDate(o.starts)} – {prettyDate(o.ends)}
+        {prettyDate(o.starts, true)} – {prettyDate(o.ends, true)}
       </Fact>
       <Fact name="Eligible drivers">
         {o.scope === "owner" ? "Household owner" : "All household drivers"}
@@ -224,7 +247,7 @@ export function Protection({ s }: { s: S }) {
                     trigger={
                       <button className="secondary">
                         <Ticket size={16} />
-                        Offer details
+                        Choose
                       </button>
                     }
                   >

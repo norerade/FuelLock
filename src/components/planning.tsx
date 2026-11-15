@@ -1,8 +1,14 @@
 "use client";
 import { useState } from "react";
 import { Coins, MapPin, Navigation, Plus, Route, Target } from "lucide-react";
-import { decimal, gallons, perGallon, usd } from "@/server/domain/money";
-import { rankStations } from "@/server/domain/trips";
+import {
+  decimal,
+  decimalText,
+  gallons,
+  perGallon,
+  usd,
+} from "@/server/domain/money";
+import { defaultTrip, rankStations } from "@/server/domain/trips";
 import { routes } from "@/server/providers/routes";
 import {
   type S,
@@ -10,13 +16,14 @@ import {
   Field,
   Modal,
   SectionTitle,
+  prettyDate,
   Fact,
   Tag,
 } from "./ui";
 export function Trips({ s }: { s: S }) {
-  const [routeId, setRoute] = useState<string>(routes[0].id),
+  const [routeId, setRoute] = useState<string>(defaultTrip.routeId),
     [carId, setCar] = useState(s.cars[0]?.id ?? ""),
-    [volume, setVolume] = useState("12");
+    [volume, setVolume] = useState(decimalText(defaultTrip.volume, 3, 0));
   let qty = 0;
   try {
     qty = decimal(volume, 3);
@@ -118,7 +125,7 @@ export function Trips({ s }: { s: S }) {
   );
 }
 export function Goals({ s }: { s: S }) {
-  const posted = s.purchases.filter((p) => p.status === "posted");
+  const completed = s.transfers.filter((t) => t.status === "completed");
   const owner = s.actor.role === "owner";
   return (
     <div className="stack">
@@ -147,18 +154,14 @@ export function Goals({ s }: { s: S }) {
         </SectionTitle>
         <div className="card-grid">
           {s.goals.map((g) => {
-            const rounds = posted.reduce(
-              (n, p) => n + (p.goal === g.id ? p.roundUp : 0),
-              0,
-            );
-            const rewards = posted.reduce(
-              (n, p) =>
-                n +
-                (p.rewardGoal === g.id && p.rewardStatus === "paid"
-                  ? p.reward
-                  : 0),
-              0,
-            );
+            const total = (kind: string) =>
+              completed.reduce(
+                (sum, t) =>
+                  sum + (t.goal === g.id && t.kind === kind ? t.amount : 0),
+                0,
+              );
+            const rounds = total("roundup"),
+              rewards = total("cashback");
             const saved = rounds + rewards;
             return (
               <article className="goal-card" key={g.id}>
@@ -215,10 +218,55 @@ export function Goals({ s }: { s: S }) {
                   </select>
                 </Field>
               ))}
+              <Field name="Monthly transfer limit ($)">
+                <input
+                  name="monthlyLimit"
+                  inputMode="decimal"
+                  defaultValue={decimalText(s.family.transferLimit, 2)}
+                  required
+                />
+              </Field>
+              <Field name="Minimum fuel budget remaining ($)">
+                <input
+                  name="minimumBalance"
+                  inputMode="decimal"
+                  defaultValue={decimalText(s.family.minimumBalance, 2)}
+                  required
+                />
+              </Field>
             </div>
+            <label className="rule-check">
+              <input
+                type="checkbox"
+                name="paused"
+                defaultChecked={!!s.family.transfersPaused}
+              />
+              Pause automatic transfers
+            </label>
+            <label className="rule-check">
+              <input
+                type="checkbox"
+                name="consent"
+                defaultChecked={!!s.family.transferConsent}
+              />
+              I authorize simulated transfers under these rules.
+            </label>
           </ActionForm>
         ) : (
           <>
+            <Fact name="Monthly transfer limit">
+              {usd(s.family.transferLimit)}
+            </Fact>
+            <Fact name="Minimum fuel budget remaining">
+              {usd(s.family.minimumBalance)}
+            </Fact>
+            <Fact name="Automatic transfers">
+              {s.family.transfersPaused
+                ? "Paused"
+                : s.family.transferConsent
+                  ? "Authorized"
+                  : "Consent required"}
+            </Fact>
             <Fact name="Round-ups">
               {s.goals.find((g) => g.auto)?.name ?? "Off"}
             </Fact>
@@ -227,6 +275,40 @@ export function Goals({ s }: { s: S }) {
             </Fact>
           </>
         )}
+      </section>
+      <section className="panel">
+        <SectionTitle title="Transfers">
+          <Tag>Simulated</Tag>
+        </SectionTitle>
+        {s.transfers.length ? (
+          <table className="activity-history">
+            <thead>
+              <tr>
+                {["Goal", "Date", "Source", "Amount", "Status"].map((h) => (
+                  <th key={h} scope="col">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {s.transfers.map((t) => (
+                <tr key={t.purchase + t.kind}>
+                  <td>{s.goals.find((g) => g.id === t.goal)?.name}</td>
+                  <td data-label="Date">{prettyDate(t.at, true)}</td>
+                  <td data-label="Source">
+                    {t.kind === "roundup" ? "Round-up" : "Cashback"}
+                  </td>
+                  <td data-label="Amount">{usd(t.amount)}</td>
+                  <td data-label="Status">{t.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p>No simulated transfers yet.</p>
+        )}
+        <Fact name="529">Provider not connected</Fact>
       </section>
     </div>
   );
@@ -245,9 +327,16 @@ export function Settings({ s }: { s: S }) {
               <Field name="Default monthly budget ($)">
                 <input
                   name="budget"
-                  defaultValue={(s.family.budget / 100).toFixed(2)}
+                  defaultValue={decimalText(s.family.budget, 2)}
                   required
                   inputMode="decimal"
+                />
+              </Field>
+              <Field name="Next payday">
+                <input
+                  name="nextPayday"
+                  type="date"
+                  defaultValue={s.family.nextPayday ?? ""}
                 />
               </Field>
               <Field name="Owner name">
@@ -271,7 +360,8 @@ export function Settings({ s }: { s: S }) {
           </ActionForm>
         ) : (
           <p>
-            {s.family.name} · Default monthly budget {usd(s.family.budget)}
+            {s.family.name} · Default monthly budget {usd(s.family.budget)} ·
+            Next payday {s.family.nextPayday ?? "Not set"}
           </p>
         )}
       </section>
@@ -279,10 +369,48 @@ export function Settings({ s }: { s: S }) {
         <SectionTitle title="Family pilot plan">
           <Coins size={20} />
         </SectionTitle>
-        <Fact name="Subscription">{usd(0)} / month</Fact>
+        <p>
+          <strong>Family — {usd(699)}/month</strong> (pilot: $0 during demo)
+        </p>
         <Fact name="Offer fees">Shown per agreement before activation</Fact>
         <Fact name="Payments">Simulated partner settlement</Fact>
         <Fact name="Units">USD · US gallons · miles</Fact>
+      </section>
+      <section className="panel">
+        <SectionTitle
+          title="Unit economics (hypothesis)"
+          sub="Per family, per month."
+        />
+        <Fact name="Service price">{usd(699)}</Fact>
+        <Fact name="Target contribution">{usd(400)}</Fact>
+        <Fact name="Variable cost limit">{usd(699 - 400)}</Fact>
+      </section>
+      <section className="panel">
+        <SectionTitle title="Integrations" />
+        {[
+          "Station partners & settlement",
+          "Station prices & routes",
+          "Receipt protection",
+          "Rewards & savings transfers",
+        ].map((name) => (
+          <Fact key={name} name={name}>
+            <Tag>Simulated</Tag>
+          </Fact>
+        ))}
+        {[
+          "Bank feed",
+          "Live maps",
+          "Receipt OCR",
+          "Subscription billing",
+          "529 provider",
+        ].map((name) => (
+          <Fact key={name} name={name}>
+            <Tag tone="gray">Not connected</Tag>
+          </Fact>
+        ))}
+        <Fact name="AI report provider">
+          {s.aiEnabled ? "Configured" : "Not connected"}
+        </Fact>
       </section>
     </div>
   );

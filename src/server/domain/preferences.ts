@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Transaction } from "@libsql/client";
 import type { Identity } from "../session";
-import { dollars, label, requireThat } from "./validation";
+import { dollars, label, nonnegativeDollars, requireThat } from "./validation";
 export async function addGoal(
   tx: Transaction,
   a: Identity,
@@ -27,7 +27,14 @@ export async function updateRules(
     403,
   );
   const rules = z
-    .object({ roundup: z.string().max(80), cashback: z.string().max(80) })
+    .object({
+      roundup: z.string().max(80),
+      cashback: z.string().max(80),
+      monthlyLimit: nonnegativeDollars.optional(),
+      minimumBalance: nonnegativeDollars.optional(),
+      paused: z.literal("on").optional(),
+      consent: z.literal("on").optional(),
+    })
     .parse(input);
   for (const id of [rules.roundup, rules.cashback].filter(Boolean)) {
     const goal = (
@@ -52,6 +59,16 @@ export async function updateRules(
       sql: "UPDATE goals SET cashback=1 WHERE id=?",
       args: [rules.cashback],
     });
+  await tx.execute({
+    sql: "UPDATE families SET transfer_limit=COALESCE(?,transfer_limit), minimum_balance=COALESCE(?,minimum_balance), transfers_paused=?, transfer_consent=? WHERE id=?",
+    args: [
+      rules.monthlyLimit ?? null,
+      rules.minimumBalance ?? null,
+      Number(!!rules.paused),
+      Number(!!rules.consent),
+      a.family,
+    ],
+  });
   return { message: "Savings rules saved." };
 }
 export async function settings(
@@ -65,11 +82,17 @@ export async function settings(
     403,
   );
   const data = z
-    .object({ household: label, owner: label, driver: label, budget: dollars })
+    .object({
+      household: label,
+      owner: label,
+      driver: label,
+      budget: dollars,
+      nextPayday: z.union([z.iso.date(), z.literal("")]).optional(),
+    })
     .parse(input);
   await tx.execute({
-    sql: "UPDATE families SET name=?,budget=? WHERE id=?",
-    args: [data.household, data.budget, a.family],
+    sql: "UPDATE families SET name=?,budget=?,next_payday=NULLIF(COALESCE(?,next_payday),'') WHERE id=?",
+    args: [data.household, data.budget, data.nextPayday ?? null, a.family],
   });
   await tx.execute({
     sql: "UPDATE drivers SET name=CASE WHEN role='owner' THEN ? ELSE ? END WHERE family=?",

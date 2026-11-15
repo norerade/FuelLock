@@ -1,6 +1,14 @@
 import { randomUUID, randomBytes } from "node:crypto";
 import type { Transaction } from "@libsql/client";
-import { redeem } from "../domain/purchases";
+import {
+  cancelPurchase,
+  digest,
+  insertPurchase,
+  redeem,
+} from "../domain/purchases";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { lineCents } from "../domain/money";
 import { requireThat } from "../domain/validation";
 export const code = () => "FL-" + randomBytes(4).toString("hex").toUpperCase();
 export const canonical = "sample-household";
@@ -22,8 +30,8 @@ export async function seedFamily(
   const owner = randomUUID(),
     member = randomUUID();
   await tx.execute({
-    sql: "INSERT INTO families VALUES(?,?,?,'Family',1,?)",
-    args: [id, "Morgan household", 32000, iso],
+    sql: "INSERT INTO families(id,name,budget,plan,demo,created,next_payday) VALUES(?,?,?,'Family',1,?,?)",
+    args: [id, "Morgan household", 32000, iso, until.slice(0, 10)],
   });
   for (const [driver, name, role] of [
     [owner, "Alex Morgan", "owner"],
@@ -33,6 +41,15 @@ export async function seedFamily(
       sql: "INSERT INTO drivers VALUES(?,?,?,?)",
       args: [driver, id, name, role],
     });
+  await tx.execute({
+    sql: "INSERT INTO invites(id,family,driver,expires,used) VALUES(?,?,?,?,0)",
+    args: [
+      randomBytes(24).toString("hex"),
+      id,
+      member,
+      new Date(now.getTime() + 86400000).toISOString(),
+    ],
+  });
   for (const [name, fuel, mpg] of [
     ["Subaru Outback", "Gasoline", 28],
     ["VW Golf TDI", "Diesel", 36],
@@ -168,6 +185,66 @@ export async function seedFamily(
         args: [i < 3 ? "paid" : "confirmed", purchase],
       });
   }
+  for (const [index, status] of [
+    "posted",
+    "needs_review",
+    "cancelled",
+  ].entries()) {
+    const volume = 6000 + index * 1000,
+      pump = 3999000;
+    const amount = lineCents(volume, pump);
+    const purchase = await insertPurchase(tx, {
+      family: id,
+      driver: member,
+      station: stationIds[2],
+      contract: null,
+      fuel: "Gasoline",
+      grade: "Regular 87",
+      volume,
+      covered: 0,
+      pump,
+      amount,
+      benefit: 0,
+      market: amount,
+      at: start,
+      source: status === "posted" ? "Receipt" : "Bank record",
+    });
+    if (status === "posted") {
+      const content = readFileSync(
+        join(process.cwd(), "public/images/demo-receipt.png"),
+      );
+      await tx.execute({
+        sql: "INSERT INTO receipts VALUES(?,?,?,?,?,?,?)",
+        args: [
+          randomUUID(),
+          id,
+          purchase,
+          digest(content),
+          "cedar-point-demo.png",
+          "image/png",
+          content,
+        ],
+      });
+    } else if (status === "cancelled") {
+      await cancelPurchase(tx, id, purchase);
+    } else {
+      await tx.execute({
+        sql: "UPDATE purchases SET status='needs_review',reward_status='not accrued',round_up=0,goal=NULL WHERE id=?",
+        args: [purchase],
+      });
+    }
+  }
+  // Historical simulated transfers only. New transfers require the owner's own opt-in.
+  await tx.execute({
+    sql: `UPDATE purchases SET round_up=(100-amount%100)%100,goal=(SELECT id FROM goals WHERE family=?)
+    WHERE family=? AND status='posted' AND reward_status='paid'`,
+    args: [id, id],
+  });
+  await tx.execute({
+    sql: `UPDATE purchases SET reward_goal=(SELECT id FROM goals WHERE family=?),reward_transfer_at=at
+    WHERE family=? AND status='posted' AND reward_status='confirmed'`,
+    args: [id, id],
+  });
   return { family: id, driver: owner };
 }
 export async function confirmContract(

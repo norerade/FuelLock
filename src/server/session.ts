@@ -5,13 +5,22 @@ import { client, ready } from "./db/client";
 import { digest } from "./domain/purchases";
 import { Problem } from "./domain/validation";
 export async function identity() {
-  const token = (await cookies()).get("fuellock_session")?.value;
+  const jar = await cookies();
+  const token = jar.get("fuellock_session")?.value;
   if (!token) return null;
   await ready();
   const row = (
     await client.execute({
-      sql: "SELECT s.family,s.driver,d.role FROM sessions s JOIN drivers d ON d.id=s.driver WHERE s.token=? AND s.expires>?",
-      args: [digest(token), new Date().toISOString()],
+      sql: `SELECT s.family, COALESCE(persona.id,d.id) AS driver, COALESCE(persona.role,d.role) AS role,
+        (f.demo=1 AND d.role='owner') AS can_switch
+        FROM sessions s JOIN families f ON f.id=s.family JOIN drivers d ON d.id=s.driver AND d.family=s.family
+        LEFT JOIN drivers persona ON f.demo=1 AND d.role='owner' AND persona.family=s.family AND persona.role='driver' AND persona.id=?
+        WHERE s.token=? AND s.expires>?`,
+      args: [
+        jar.get("fuellock_persona")?.value ?? "",
+        digest(token),
+        new Date().toISOString(),
+      ],
     })
   ).rows[0];
   return row
@@ -19,10 +28,16 @@ export async function identity() {
         family: String(row.family),
         driver: String(row.driver),
         role: String(row.role),
+        canSwitchPersona: !!row.can_switch,
       }
     : null;
 }
-export type Identity = NonNullable<Awaited<ReturnType<typeof identity>>>;
+export type Identity = {
+  family: string;
+  driver: string;
+  role: string;
+  canSwitchPersona?: boolean;
+};
 export async function newSession(
   tx: Transaction,
   family: string,

@@ -20,20 +20,39 @@ export function halfUp(n: bigint, d: bigint): number {
 }
 export const lineCents = (volume: number, price: number) =>
   halfUp(BigInt(volume) * BigInt(price), 10_000_000n);
-export const usd = (cents: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-    cents / 100,
+export function decimalText(value: number, places: number, minimum = places) {
+  const digits = BigInt(Math.abs(value))
+    .toString()
+    .padStart(places + 1, "0");
+  const fraction = digits
+    .slice(-places)
+    .replace(/0+$/, "")
+    .padEnd(minimum, "0");
+  return (
+    (value < 0 ? "-" : "") +
+    digits.slice(0, -places) +
+    (fraction ? "." + fraction : "")
   );
-export const gallons = (volume: number) =>
-  new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 }).format(
-    volume / 1000,
+}
+function formatted(
+  value: number,
+  places: number,
+  minimum: number,
+  prefix = "",
+) {
+  const [whole, fraction] = decimalText(Math.abs(value), places, minimum).split(
+    ".",
   );
-export const perGallon = (price: number) =>
-  "$" +
-  new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 6,
-  }).format(price / 1_000_000);
+  return (
+    (value < 0 ? "-" : "") +
+    prefix +
+    BigInt(whole).toLocaleString("en-US") +
+    (fraction ? "." + fraction : "")
+  );
+}
+export const usd = (cents: number) => formatted(cents, 2, 2, "$");
+export const gallons = (volume: number) => formatted(volume, 3, 0);
+export const perGallon = (price: number) => formatted(price, 6, 2, "$");
 export type OfferKind = "lock" | "prebuy";
 export function quote(
   kind: OfferKind,
@@ -57,6 +76,26 @@ export function quote(
     market: lineCents(volume, pump),
   };
 }
+// Price spread in microdollars per gallon for fees in cents and volume in milligallons.
+export const breakEvenSpread = (fees: number, covered: number) =>
+  covered > 0 ? halfUp(BigInt(fees) * 10_000_000n, BigInt(covered)) : null;
+
+export function lockScenario(
+  volume: number,
+  available: number,
+  pump: number,
+  cap: number,
+  fees: number,
+) {
+  const result = quote("lock", volume, available, pump, cap);
+  return {
+    ...result,
+    fees,
+    net: result.benefit - fees,
+    spread: breakEvenSpread(fees, result.covered),
+  };
+}
+
 export function cashback(cents: number) {
   return halfUp(BigInt(cents) * 2n, 100n);
 }

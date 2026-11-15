@@ -1,10 +1,11 @@
 import { aiConfigured } from "./providers/ai-report";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc, gt, sql } from "drizzle-orm";
 import { db as householdDatabase } from "./db/client";
 import * as t from "./db/schema";
 import type { Identity } from "./session";
 export async function snapshot(actor: Identity, db = householdDatabase) {
   const f = actor.family;
+  const now = new Date().toISOString();
   const [
     family,
     drivers,
@@ -17,6 +18,8 @@ export async function snapshot(actor: Identity, db = householdDatabase) {
     goals,
     periods,
     claims,
+    transfers,
+    invitations,
   ] = await db.batch([
     db.select().from(t.families).where(eq(t.families.id, f)),
     db.select().from(t.drivers).where(eq(t.drivers.family, f)),
@@ -33,8 +36,23 @@ export async function snapshot(actor: Identity, db = householdDatabase) {
     db.select().from(t.goals).where(eq(t.goals.family, f)),
     db.select().from(t.periods).where(eq(t.periods.family, f)),
     db.select().from(t.claims).where(eq(t.claims.family, f)),
+    db
+      .select()
+      .from(t.transfers)
+      .where(eq(t.transfers.family, f))
+      .orderBy(desc(t.transfers.at)),
+    db
+      .select()
+      .from(t.invites)
+      .where(
+        and(
+          eq(t.invites.family, f),
+          eq(t.invites.used, 0),
+          gt(t.invites.expires, now),
+          actor.role === "owner" ? undefined : sql`0`,
+        ),
+      ),
   ]);
-  const now = new Date().toISOString();
   return {
     actor,
     aiEnabled: aiConfigured(),
@@ -61,6 +79,8 @@ export async function snapshot(actor: Identity, db = householdDatabase) {
     goals,
     periods,
     claims,
+    transfers,
+    invitations,
     now,
   };
 }

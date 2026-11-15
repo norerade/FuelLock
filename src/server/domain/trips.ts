@@ -1,6 +1,7 @@
 import type { Snapshot } from "../snapshot";
 import { halfUp, quote } from "./money";
 import { routes } from "../providers/routes";
+export const defaultTrip = { routeId: routes[0].id, volume: 12000 };
 export function rankStations(
   s: Snapshot,
   routeId: string,
@@ -17,6 +18,25 @@ export function rankStations(
     volume > 250000
   )
     return [];
+  const contracts = s.contracts.flatMap((contract) => {
+    const offer = s.offers.find((o) => o.id === contract.offer);
+    if (
+      !offer ||
+      contract.status !== "active" ||
+      !contract.available ||
+      offer.starts > s.now ||
+      offer.ends < s.now ||
+      offer.fuel !== car.fuel ||
+      (offer.scope === "owner" && s.actor.role !== "owner")
+    )
+      return [];
+    return [{ contract, offer }];
+  });
+  const protectedBefore = contracts.reduce(
+    (sum, { contract, offer }) =>
+      sum + (offer.kind === "lock" ? contract.available : 0),
+    0,
+  );
   return s.stations
     .flatMap((station) => {
       const detour = (route.detours as Record<string, number>)[
@@ -25,23 +45,17 @@ export function rankStations(
       if (detour === undefined) return [];
       const pump = car.fuel === "Diesel" ? station.diesel : station.gasoline;
       const options = [
-        { name: "Pump price", ...quote("lock", volume, 0, pump, pump) },
+        {
+          name: "Pump price",
+          lock: false,
+          ...quote("lock", volume, 0, pump, pump),
+        },
       ];
-      for (const c of s.contracts) {
-        const o = s.offers.find((o) => o.id === c.offer);
-        if (
-          !o ||
-          c.status !== "active" ||
-          !c.available ||
-          o.starts > s.now ||
-          o.ends < s.now ||
-          o.fuel !== car.fuel ||
-          !o.allowed.includes(station.id) ||
-          (o.scope === "owner" && s.actor.role !== "owner")
-        )
-          continue;
+      for (const { contract: c, offer: o } of contracts) {
+        if (!o.allowed.includes(station.id)) continue;
         options.push({
           name: o.name,
+          lock: o.kind === "lock",
           ...quote(o.kind, volume, c.available, pump, o.cap),
         });
       }
@@ -58,6 +72,7 @@ export function rankStations(
           detourCost,
           option: best.name,
           covered: best.covered,
+          protectedAfter: protectedBefore - (best.lock ? best.covered : 0),
           fuel: best.fuel,
           total: best.fuel + detourCost,
         },

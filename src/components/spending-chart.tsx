@@ -30,7 +30,7 @@ export function SpendingChart({ s, month }: { s: S; month: string }) {
     );
     const actual = rows.reduce((n, p) => n + p.amount, 0),
       retail = rows.reduce((n, p) => n + p.market, 0);
-    return { day: d, actual: actual / 100, market: retail / 100 };
+    return { day: d, actual, market: retail };
   });
   return (
     <section className="panel trend">
@@ -63,7 +63,7 @@ export function SpendingChart({ s, month }: { s: S; month: string }) {
           </span>
           <span>
             <i />
-            Pump value
+            Cost at pump prices
           </span>
         </div>
       </div>
@@ -108,23 +108,24 @@ export function SpendingChart({ s, month }: { s: S; month: string }) {
               tickLine={false}
               axisLine={false}
               minTickGap={34}
-              tick={{ fill: "#667b80", fontSize: 11 }}
+              tick={{ fill: "#466260", fontSize: 12 }}
             />
             <YAxis
-              tickFormatter={(v) => "$" + v}
+              allowDecimals={false}
+              tickFormatter={(v) => usd(v).replace(/\.00$/, "")}
               axisLine={false}
               tickLine={false}
-              tick={{ fill: "#667b80", fontSize: 11 }}
+              tick={{ fill: "#466260", fontSize: 12 }}
             />
             <Tooltip
-              formatter={(v) => "$" + Number(v).toFixed(2)}
+              formatter={(v) => usd(Number(v))}
               labelFormatter={(d) => month + "-" + String(d).padStart(2, "0")}
             />
             <Area
-              name="Pump value"
+              name="Cost at pump prices"
               dataKey="market"
               type="monotone"
-              stroke="#a5b8b9"
+              stroke="#66817e"
               strokeDasharray="5 5"
               strokeWidth={2}
               fill="none"

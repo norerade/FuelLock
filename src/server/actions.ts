@@ -10,6 +10,7 @@ import {
   requireThat,
   Problem,
 } from "./domain/validation";
+import { transferGoal } from "./domain/savings";
 import { preview, redeem, cancelPurchase } from "./domain/purchases";
 import { claimReceipt, decideClaim } from "./domain/claims";
 import { addGoal, updateRules, settings } from "./domain/preferences";
@@ -118,21 +119,26 @@ export async function act(
       const p = id.parse(input.id);
       const stage = z.enum(["pending", "confirmed"]).parse(input.stage);
       const change = await tx.execute({
-        sql: "UPDATE purchases SET reward_status=?,reward_goal=CASE WHEN ?='confirmed' THEN (SELECT id FROM goals WHERE family=? AND cashback=1) ELSE reward_goal END WHERE family=? AND id=? AND status='posted' AND reward_status=?",
-        args: [
-          stage === "pending" ? "confirmed" : "paid",
-          stage,
-          family,
-          family,
-          p,
-          stage,
-        ],
+        sql: "UPDATE purchases SET reward_status=? WHERE family=? AND id=? AND status='posted' AND reward_status=? RETURNING reward",
+        args: [stage === "pending" ? "confirmed" : "paid", family, p, stage],
       });
       requireThat(
-        change.rowsAffected,
+        change.rows.length === 1,
         "Reward has already changed. Refresh the wallet.",
         409,
       );
+      const goal = await transferGoal(
+        tx,
+        family,
+        p,
+        "cashback",
+        Number(change.rows[0].reward),
+        now,
+      );
+      await tx.execute({
+        sql: "UPDATE purchases SET reward_goal=?,reward_transfer_at=? WHERE family=? AND id=?",
+        args: [goal, goal ? now : null, family, p],
+      });
       return { message: "Cashback updated." };
     }
     case "budget": {

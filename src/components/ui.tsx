@@ -24,6 +24,7 @@ export type Purchase = S["purchases"][number];
 export type Offer = S["offers"][number];
 export const prettyDate = (iso: string, long = false) =>
   new Intl.DateTimeFormat("en-US", {
+    year: long ? "numeric" : undefined,
     month: long ? "long" : "short",
     day: "numeric",
     timeZone: "UTC",
@@ -140,9 +141,11 @@ export function Empty({ children }: { children: ReactNode }) {
 export function Copy({
   value,
   label = "Copy",
+  link = false,
 }: {
   value: string;
   label?: string;
+  link?: boolean;
 }) {
   const [message, set] = useState("");
   return (
@@ -152,7 +155,9 @@ export function Copy({
         className="secondary small"
         onClick={async () => {
           try {
-            await navigator.clipboard.writeText(value);
+            await navigator.clipboard.writeText(
+              link ? new URL(value, window.location.origin).href : value,
+            );
             set("Copied");
           } catch {
             set("Select the text to copy.");

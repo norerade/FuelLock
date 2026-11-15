@@ -12,7 +12,14 @@ import {
 import { BalanceCard } from "./balance-card";
 import { SpendingChart } from "./spending-chart";
 import { report, reportFacts } from "@/server/domain/report";
-import { decimal, quote, usd, gallons, perGallon } from "@/server/domain/money";
+import {
+  decimal,
+  decimalText,
+  lockScenario,
+  usd,
+  gallons,
+  perGallon,
+} from "@/server/domain/money";
 import { type S, SectionTitle, Field, Fact, Empty } from "./ui";
 export function Reports({ s, month }: { s: S; month: string }) {
   const r = report(s, month),
@@ -25,15 +32,17 @@ export function Reports({ s, month }: { s: S; month: string }) {
   );
   const [id, setId] = useState(current[0]?.id ?? ""),
     [volume, setVolume] = useState("12"),
-    [pump, setPump] = useState("4.199");
+    [enteredPump, setPump] = useState<string | null>(null);
   const c = current.find((c) => c.id === id) ?? current[0],
     o = s.offers.find((o) => o.id === c?.offer);
+  const pump =
+    enteredPump ?? decimalText(Math.max(1, (o?.cap ?? 1) - 100000), 6, 2);
   let q;
   try {
     const g = decimal(volume, 3),
       p = decimal(pump, 6);
     if (g > 0 && g <= 250000 && p > 0 && p <= 25000000 && c && o)
-      q = quote("lock", g, c.available, p, o.cap);
+      q = lockScenario(g, c.available, p, o.cap, o.fee + o.service);
   } catch {}
   return (
     <div className="report-layout">
@@ -136,7 +145,13 @@ export function Reports({ s, month }: { s: S; month: string }) {
             <>
               <div className="scenario-fields">
                 <Field name="Partner Lock">
-                  <select value={c.id} onChange={(e) => setId(e.target.value)}>
+                  <select
+                    value={c.id}
+                    onChange={(e) => {
+                      setId(e.target.value);
+                      setPump(null);
+                    }}
+                  >
                     {current.map((c) => (
                       <option key={c.id} value={c.id}>
                         {s.offers.find((o) => o.id === c.offer)?.name}
@@ -178,6 +193,19 @@ export function Reports({ s, month }: { s: S; month: string }) {
                   </Fact>
 
                   <Fact name="Gross protection benefit">{usd(q.benefit)}</Fact>
+                  <Fact name="Full agreement fees">{usd(q.fees)}</Fact>
+                  <Fact name="Scenario net after fees">
+                    <span className={q.net < 0 ? "negative" : "credit"}>
+                      {usd(q.net)}
+                    </span>
+                  </Fact>
+                  {q.spread !== null && (
+                    <p>
+                      Break-even: market must exceed cap by{" "}
+                      {perGallon(q.spread)}/gal to recover the full fees on
+                      these {gallons(q.covered)} covered gallons.
+                    </p>
+                  )}
                   <p className="terms">
                     Fuel due equals covered gallons × the lower price, plus
                     uncovered gallons × pump price. Protection and service fees

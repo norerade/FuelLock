@@ -4,6 +4,7 @@ import { CarFront, Plus, UserRoundPlus } from "lucide-react";
 import {
   type S,
   SectionTitle,
+  prettyDate,
   Tag,
   Field,
   ActionForm,
@@ -37,6 +38,18 @@ export function Household({ s }: { s: S }) {
               </small>
             </div>
             <Tag tone="gray">{d.role}</Tag>
+          </div>
+        ))}
+        {s.invitations.map((i) => (
+          <div className="list-line" key={i.id}>
+            <div className="grow">
+              <b>
+                Pending invitation ·{" "}
+                {s.drivers.find((d) => d.id === i.driver)?.name}
+              </b>
+              <small>Expires {prettyDate(i.expires, true)}</small>
+            </div>
+            <Copy value={"/join/" + i.id} link label="Copy invite" />
           </div>
         ))}
         {owner && (

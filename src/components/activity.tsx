@@ -196,7 +196,7 @@ export function PurchaseDetail({
           {usd(p.reward)} · {p.rewardStatus}
         </Fact>
         <Fact name="Source">{p.source}</Fact>
-        <Fact name="Status">{p.status}</Fact>
+        <Fact name="Status">{historyStatus(p.status)}</Fact>
       </div>
       {s.receipts
         .filter((r) => r.purchase === p.id)
@@ -284,9 +284,21 @@ export function ActivityList({ s, items }: { s: S; items: Purchase[] }) {
     </div>
   );
 }
+function historyStatus(status: string) {
+  return status === "needs_review"
+    ? "Needs review"
+    : status === "cancelled"
+      ? "Cancelled"
+      : "Posted";
+}
 export function Activity({ s }: { s: S }) {
   const [filter, set] = useState("All drivers"),
     [status, setStatus] = useState("All statuses");
+  const items = s.purchases.filter(
+    (p) =>
+      (filter === "All drivers" || p.driver === filter) &&
+      (status === "All statuses" || p.status === status),
+  );
   return (
     <section className="panel">
       <SectionTitle title="Fill-up history">
@@ -311,18 +323,68 @@ export function Activity({ s }: { s: S }) {
           onChange={(e) => setStatus(e.target.value)}
         >
           <option>All statuses</option>
-          <option>posted</option>
-          <option>cancelled</option>
+          <option value="posted">Posted</option>
+          <option value="needs_review">Needs review</option>
+          <option value="cancelled">Cancelled</option>
         </select>
       </div>
-      <ActivityList
-        s={s}
-        items={s.purchases.filter(
-          (p) =>
-            (filter === "All drivers" || p.driver === filter) &&
-            (status === "All statuses" || p.status === status),
-        )}
-      />
+      {!items.length ? (
+        <Empty>No fill-ups match this view.</Empty>
+      ) : (
+        <table className="activity-history">
+          <thead>
+            <tr>
+              {[
+                "Fill-up",
+                "Price/gal",
+                "Protected gallons",
+                "Benefit",
+                "Source",
+                "Cashback",
+                "Status",
+              ].map((label) => (
+                <th scope="col" key={label}>
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((p) => (
+              <tr key={p.id}>
+                <td>
+                  <PurchaseDetail
+                    s={s}
+                    p={p}
+                    trigger={
+                      <button className="activity-row history-link">
+                        <b>
+                          {s.stations.find((st) => st.id === p.station)?.name}
+                        </b>
+                        <small>
+                          {prettyDate(p.at)} ·{" "}
+                          {s.drivers.find((d) => d.id === p.driver)?.name}
+                        </small>
+                        <strong>{usd(p.amount)}</strong>
+                      </button>
+                    }
+                  />
+                </td>
+                <td data-label="Price/gal">{perGallon(p.pump)}</td>
+                <td data-label="Protected gallons">{gallons(p.covered)} gal</td>
+                <td data-label="Benefit">
+                  {usd(p.status === "posted" ? p.benefit : 0)}
+                </td>
+                <td data-label="Source">{p.source}</td>
+                <td data-label="Cashback">
+                  <RewardTag status={p.rewardStatus} />
+                </td>
+                <td data-label="Status">{historyStatus(p.status)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </section>
   );
 }

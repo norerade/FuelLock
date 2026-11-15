@@ -11,7 +11,14 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import { gallons, perGallon, usd } from "@/server/domain/money";
+import { defaultTrip, rankStations } from "@/server/domain/trips";
+import {
+  decimalText,
+  halfUp,
+  gallons,
+  perGallon,
+  usd,
+} from "@/server/domain/money";
 import { report } from "@/server/domain/report";
 import {
   type S,
@@ -49,7 +56,7 @@ export function BudgetEditor({
           <input
             name="budget"
             inputMode="decimal"
-            defaultValue={(report(s, month).budget / 100).toFixed(2)}
+            defaultValue={decimalText(report(s, month).budget, 2)}
             required
           />
         </Field>
@@ -75,9 +82,14 @@ export function Overview({ s, month }: { s: S; month: string }) {
     .reduce((n, c) => n + c.available, 0);
   const metrics = [
     {
-      title: "Fuel spending",
+      title: "Spent incl. fees",
       value: usd(r.total),
-      detail: "of " + usd(r.budget) + " monthly budget",
+      detail:
+        usd(r.fuel) +
+        " at pump + " +
+        usd(r.fees) +
+        " fees" +
+        (r.upfront ? " + " + usd(r.upfront) + " prepaid" : ""),
       icon: Wallet,
       tone: "mint",
     },
@@ -104,11 +116,24 @@ export function Overview({ s, month }: { s: S; month: string }) {
       tone: "sand",
     },
   ];
-  const percent = Math.round((r.total / r.budget) * 100);
+  const percent = r.budget
+    ? halfUp(BigInt(r.total) * 100n, BigInt(r.budget))
+    : 0;
+  const best = rankStations(
+    s,
+    defaultTrip.routeId,
+    s.cars[0]?.id ?? "",
+    defaultTrip.volume,
+  )[0];
+  const days = s.family.nextPayday
+    ? (Date.parse(s.family.nextPayday) - Date.parse(s.now.slice(0, 10))) /
+      86400000
+    : null;
   return (
     <div className="overview-stack">
       <div className="spotlight-grid">
         <BalanceCard
+          artwork
           title="Monthly budget"
           label={
             r.remaining < 0
@@ -120,6 +145,15 @@ export function Overview({ s, month }: { s: S; month: string }) {
           <div className="balance-footnote">
             <span>
               {usd(r.total)} of {usd(r.budget)} used
+            </span>
+            <span>
+              {days === null
+                ? "Next payday not set"
+                : days < 0
+                  ? "Payday date has passed"
+                  : days === 0
+                    ? "Payday today"
+                    : days + (days === 1 ? " day" : " days") + " until payday"}
             </span>
             <div className="balance-track">
               <i style={{ width: Math.min(100, percent) + "%" }} />
@@ -204,6 +238,25 @@ export function Overview({ s, month }: { s: S; month: string }) {
           </article>
         ))}
       </div>
+      <section className="panel">
+        <SectionTitle title="Next best fill-up">
+          <Go href="/trips">Open Trips</Go>
+        </SectionTitle>
+        {best ? (
+          <>
+            <h3>{best.station.name}</h3>
+            <Fact name="Planned fill-up">
+              {gallons(defaultTrip.volume)} gal · {s.cars[0].name}
+            </Fact>
+            <Fact name="Estimated total incl. detour">{usd(best.total)}</Fact>
+            <Fact name="Protected gallons after this stop">
+              {gallons(best.protectedAfter)} gal
+            </Fact>
+          </>
+        ) : (
+          <p>No eligible stop for the current trip.</p>
+        )}
+      </section>
       <div className="analysis-grid">
         <SpendingChart s={s} month={month} />
         <section className="panel recent-panel">
@@ -219,23 +272,37 @@ export function Overview({ s, month }: { s: S; month: string }) {
 export function WalletPage({ s, month }: { s: S; month: string }) {
   const r = report(s, month);
   const rows = s.purchases.filter((p) => p.status === "posted");
-  const lifetime = rows.reduce(
-    (n, p) => n + (p.rewardStatus === "paid" && !p.rewardGoal ? p.reward : 0),
-    0,
-  );
-  const claimCredit = s.claims
-    .filter((c) => c.status === "paid")
-    .reduce((n, c) => n + c.amount, 0);
+  const rewardTotal = (stage: "pending" | "confirmed" | "paid") =>
+    rows.reduce(
+      (sum, p) => sum + (p.rewardStatus === stage ? p.reward : 0),
+      0,
+    ) +
+    s.claims.reduce((sum, c) => sum + (c.status === stage ? c.amount : 0), 0);
+  const breakdown: [string, number][] = [
+    ["Fuel paid at the pump", r.fuel],
+    ["Prepaid gallons purchased", r.upfront],
+    ["Protection fees", r.protectionFees],
+    ["Service fees", r.serviceFees],
+    ["Protection benefit", r.benefit],
+    ["Pre-buy price difference", r.prebuyEffect],
+    ["Paid cashback", r.paid],
+    ["Paid receipt claims", r.claims],
+  ];
   return (
     <div className="stack">
       <div className="spotlight-grid wallet-spotlight">
         <BalanceCard
-          title="Family wallet"
-          label="Available rewards"
-          cents={lifetime + claimCredit}
+          title="Lifetime rewards"
+          label="Paid"
+          cents={rewardTotal("paid")}
         >
-          <div className="balance-footnote">
-            <span>All-time paid cashback and reimbursements</span>
+          <div className="balance-kpi">
+            <strong>{usd(rewardTotal("pending"))}</strong>
+            <span>Pending</span>
+          </div>
+          <div className="balance-kpi">
+            <strong>{usd(rewardTotal("confirmed"))}</strong>
+            <span>Confirmed</span>
           </div>
         </BalanceCard>
         <section className="panel">
@@ -253,14 +320,13 @@ export function WalletPage({ s, month }: { s: S; month: string }) {
         <section className="panel">
           <SectionTitle title="Monthly breakdown" />
           <div className="facts">
-            <Fact name="Fuel paid at the pump">{usd(r.fuel)}</Fact>
-            <Fact name="Prepaid gallons purchased">{usd(r.upfront)}</Fact>
-            <Fact name="Protection fees">{usd(r.protectionFees)}</Fact>
-            <Fact name="Service fees">{usd(r.serviceFees)}</Fact>
-            <Fact name="Protection benefit">{usd(r.benefit)}</Fact>
-            <Fact name="Pre-buy price difference">{usd(r.prebuyEffect)}</Fact>
-            <Fact name="Paid cashback">{usd(r.paid)}</Fact>
-            <Fact name="Paid receipt claims">{usd(r.claims)}</Fact>
+            {breakdown
+              .filter(([, amount]) => amount !== 0)
+              .map(([label, amount]) => (
+                <Fact key={label} name={label}>
+                  {usd(amount)}
+                </Fact>
+              ))}
             <Fact name="Net result">
               <span className={r.net < 0 ? "negative" : ""}>{usd(r.net)}</span>
             </Fact>

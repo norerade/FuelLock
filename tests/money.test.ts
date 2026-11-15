@@ -3,6 +3,7 @@ import {
   decimal,
   halfUp,
   lineCents,
+  lockScenario,
   quote,
   usd,
   perGallon,
@@ -27,6 +28,24 @@ describe("integer money", () => {
       benefit: 500,
     });
     expect(quote("lock", 1000, 1000, 2800000, 3000000).fuel).toBe(280);
+  });
+  it("shows the full fee loss below the cap", () => {
+    expect(lockScenario(12000, 8000, 2800000, 3000000, 400)).toMatchObject({
+      fuel: 3360,
+      benefit: 0,
+      net: -400,
+      spread: 500000,
+    });
+  });
+  it("recovers fees above break-even only on covered gallons", () => {
+    expect(lockScenario(12000, 8000, 4000000, 3000000, 400)).toMatchObject({
+      fuel: 4000,
+      benefit: 800,
+      net: 400,
+      spread: 500000,
+    });
+    expect(lockScenario(12000, 8000, 3500000, 3000000, 400).net).toBe(0);
+    expect(lockScenario(12000, 0, 4000000, 3000000, 400).spread).toBeNull();
   });
   it("charges only uncovered prepaid volume at the pump", () => {
     expect(quote("prebuy", 8500, 8000, 4000000, 3200000).fuel).toBe(200);
