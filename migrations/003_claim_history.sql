@@ -1,0 +1,3 @@
+ALTER TABLE claims ADD COLUMN version TEXT NOT NULL DEFAULT 'receipt-1.0';
+ALTER TABLE claims ADD COLUMN decided TEXT;
+ALTER TABLE claims ADD COLUMN paid TEXT;
