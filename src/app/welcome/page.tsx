@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { ArrowRight, ShieldCheck, Wallet, UsersRound } from "lucide-react";
 import { Brand } from "@/components/ui";
+import DemoLogin from "@/components/demo-login";
 export default function Welcome() {
   return (
     <main className="landing">
       <nav>
-        <Brand />
-        <Link className="secondary" href="/">
+        <Brand href="/" />
+        <Link className="secondary" href="/login" prefetch={false}>
           Open workspace <ArrowRight size={15} />
         </Link>
       </nav>
@@ -25,9 +26,7 @@ export default function Welcome() {
             Plan your family’s fuel budget, protect eligible fuel purchases, and
             make every fill-up work toward your goals.
           </p>
-          <Link className="primary" href="/">
-            Explore the demo <ArrowRight size={16} />
-          </Link>
+          <DemoLogin />
         </div>
       </section>
       <div className="landing-features">

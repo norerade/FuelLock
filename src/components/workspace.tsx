@@ -33,7 +33,7 @@ const groups = [
   {
     label: "WORKSPACE",
     items: [
-      { path: "", name: "Overview", icon: LayoutDashboard },
+      { path: "overview", name: "Overview", icon: LayoutDashboard },
       { path: "protection", name: "Fuel protection", icon: ShieldCheck },
       { path: "activity", name: "Fill-up activity", icon: ActivityIcon },
       { path: "wallet", name: "Family wallet", icon: Wallet },
@@ -68,7 +68,7 @@ const titles: Record<string, [string, string]> = {
     "Put fill-up round-ups and cashback toward family goals.",
   ],
   settings: ["Settings", "Manage your household preferences and pilot plan."],
-  "": [
+  overview: [
     "Fuel overview",
     "Your household’s fuel spending, protection, and savings.",
   ],
@@ -239,7 +239,7 @@ export default function Workspace({ s, section }: { s: S; section: string }) {
               <p>{title[1]}</p>
             </div>
             <div className="title-actions">
-              {(section === "" ||
+              {(section === "overview" ||
                 section === "wallet" ||
                 section === "reports") && (
                 <label className="month-picker">
@@ -262,10 +262,12 @@ export default function Workspace({ s, section }: { s: S; section: string }) {
                   <ChevronDown size={12} />
                 </label>
               )}
-              {(section === "" || section === "activity") && <AddFill s={s} />}
+              {(section === "overview" || section === "activity") && (
+                <AddFill s={s} />
+              )}
             </div>
           </div>
-          {section === "" ? (
+          {section === "overview" ? (
             <Overview s={s} month={month} />
           ) : section === "protection" ? (
             <Protection s={s} />
@@ -308,7 +310,7 @@ export default function Workspace({ s, section }: { s: S; section: string }) {
             ))}
           <button
             className={
-              ["", "activity", "wallet", "reports"].includes(section)
+              ["overview", "activity", "wallet", "reports"].includes(section)
                 ? undefined
                 : "more-current"
             }

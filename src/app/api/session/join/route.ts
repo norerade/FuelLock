@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     });
     const res = new NextResponse(null, {
       status: 303,
-      headers: { Location: "/" },
+      headers: { Location: "/overview", "Cache-Control": "no-store" },
     });
     res.cookies.set("fuellock_session", token, sessionOptions(req));
     return res;

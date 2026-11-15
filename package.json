@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:routes": "node --test scripts/auth-routing.test.mjs",
     "test:e2e": "node scripts/smoke.mjs",
     "db:migrate": "tsx --env-file-if-exists=.env scripts/database.ts migrate",
     "db:seed": "tsx --env-file-if-exists=.env scripts/database.ts seed",

@@ -934,7 +934,7 @@ summary {
   max-width: 360px;
   color: #e4ece4;
 }
-.landing-hero a {
+.landing-hero .primary {
   margin-top: 22px;
   background: #ffe299;
   color: #183d2a;

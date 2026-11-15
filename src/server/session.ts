@@ -53,7 +53,9 @@ export function verifyOrigin(request: Request) {
 export const sessionOptions = (request: Request) => ({
   httpOnly: true,
   sameSite: "lax" as const,
-  secure: new URL(request.url).protocol === "https:",
+  secure:
+    process.env.NODE_ENV === "production" &&
+    new URL(request.url).protocol === "https:",
   path: "/",
   maxAge: 30 * 86400,
 });

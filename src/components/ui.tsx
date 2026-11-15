@@ -28,9 +28,9 @@ export const prettyDate = (iso: string, long = false) =>
     day: "numeric",
     timeZone: "UTC",
   }).format(new Date(iso));
-export function Brand() {
+export function Brand({ href = "/overview" }: { href?: string }) {
   return (
-    <Link href="/" className="brand" aria-label="FuelLock overview">
+    <Link href={href} className="brand" aria-label="FuelLock">
       <span className="brand-mark" aria-hidden="true" />
       Fuel<span className="brand-lock">Lock</span>
     </Link>

@@ -15,7 +15,7 @@ npm run db:seed
 npm run dev
 ```
 
-Open [the workspace](http://localhost:3000) or [the landing page](http://localhost:3000/welcome). First entry creates a private, seeded demo household for that browser. A second browser joins the same household through a one-time driver invitation. No API keys are needed for the core product.
+Open [the landing page](http://localhost:3000) and select **Try demo** to create a private, seeded household for that browser. The dashboard is at `/overview`. Opening a workspace page without a valid session takes you to `/login` and returns you to the requested page after demo sign-in. A second browser joins the same household through a one-time driver invitation. No API keys are needed for the core product.
 
 For a production build:
 
@@ -99,6 +99,7 @@ One Next.js App Router application serves the English interface and API. React, 
 | `npm run db:seed` | Create the canonical sample household if missing |
 | `npm run db:reset` | Restore demo-marked households and preserve active browser sessions by driver role. Households with `demo=0` are retained |
 | `npm run test:e2e` | Run the 1440 px and 390 px walkthrough against an already running server |
+| `npm run test:routes` | Check session cookies and redirect counts on a running server using the same `FUELLOCK_TEST_URL` |
 
 For the browser walkthrough, set `FUELLOCK_TEST_URL` to the running origin. The script defaults to `http://127.0.0.1:3040`. Set `BROWSER_EXECUTABLE` if Chromium, Chrome or Edge is installed outside the detected paths. Set `FUELLOCK_SCREENSHOTS` to an output directory to save both overview screenshots. Each run creates independent demo households. The second driver uses a separate browser context.
 

@@ -29,7 +29,7 @@ export default async function Join({
       ) : (
         <p>Ask the household owner for a fresh link.</p>
       )}
-      <Link className="text-link" href="/">
+      <Link className="text-link" href="/overview">
         Back to overview
       </Link>
     </main>

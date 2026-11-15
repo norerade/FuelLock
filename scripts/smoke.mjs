@@ -44,6 +44,21 @@ try {
     });
     tab.setDefaultTimeout(25000);
     await tab.goto(base);
+    assert.equal(
+      (await context.cookies()).some((c) => c.name === "fuellock_session"),
+      false,
+    );
+    await tab.getByRole("button", { name: "Try demo" }).click();
+    await tab.waitForURL(new URL("/overview", base).href);
+    await tab.getByRole("heading", { name: "Fuel overview" }).waitFor();
+    const session = (await context.cookies()).find(
+      (c) => c.name === "fuellock_session",
+    );
+    assert.ok(session?.httpOnly);
+    assert.equal(session.sameSite, "Lax");
+    assert.equal(session.path, "/");
+    assert.equal(session.secure, new URL(base).protocol === "https:");
+    await tab.reload();
     await tab.getByRole("heading", { name: "Fuel overview" }).waitFor();
     await tab.evaluate(() => document.fonts.ready);
     await tab.locator(".recharts-area-curve").first().waitFor();
