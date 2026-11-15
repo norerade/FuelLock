@@ -1,12 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useCalculatorInput } from "./use-calculator-input";
 import { decimal } from "@/server/domain/money";
 import { ProtectionScenario } from "./protection-scenario";
 import { Field } from "./ui";
 export function LandingCalculator() {
-  const [cap, setCap] = useState("3.299"),
-    [volume, setVolume] = useState("80"),
-    [fee, setFee] = useState("4.00");
+  const [cap, capField] = useCalculatorInput("3.299"),
+    [volume, volumeField] = useCalculatorInput("80"),
+    [fee, feeField] = useCalculatorInput("4.00");
   let offer;
   try {
     const values = {
@@ -29,25 +29,13 @@ export function LandingCalculator() {
       <h2>Break-even calculator</h2>
       <div className="trip-controls">
         <Field name="Price cap ($/gal)">
-          <input
-            inputMode="decimal"
-            value={cap}
-            onChange={(e) => setCap(e.target.value)}
-          />
+          <input {...capField} />
         </Field>
         <Field name="Agreement gallons">
-          <input
-            inputMode="decimal"
-            value={volume}
-            onChange={(e) => setVolume(e.target.value)}
-          />
+          <input {...volumeField} />
         </Field>
         <Field name="Total agreement fees ($)">
-          <input
-            inputMode="decimal"
-            value={fee}
-            onChange={(e) => setFee(e.target.value)}
-          />
+          <input {...feeField} />
         </Field>
       </div>
       {offer ? (

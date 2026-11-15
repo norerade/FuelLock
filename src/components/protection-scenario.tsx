@@ -1,28 +1,18 @@
 "use client";
+import dynamic from "next/dynamic";
 import { useState } from "react";
+import { useCalculatorInput } from "./use-calculator-input";
 import {
   fullUsePrice,
   familyPlanCents,
   decimal,
   decimalText,
-  lineCents,
   gallons,
   perGallon,
   protectionScenario,
   usd,
   type ScenarioMode,
 } from "@/server/domain/money";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ReferenceDot,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { FamilyPlanToggle, useFamilyPlan } from "./family-plan";
 import { Fact, Field } from "./ui";
 export type ScenarioOffer = {
@@ -31,80 +21,11 @@ export type ScenarioOffer = {
   fee: number;
   service: number;
 };
-function PayoffChart({
-  offer,
-  current,
-  volume,
-  fees,
-  spread,
-}: {
-  offer: ScenarioOffer;
-  current: number;
-  volume: number;
-  fees: number;
-  spread: number;
-}) {
-  const threshold = offer.cap + spread;
-  const left = Math.max(0, Math.min(offer.cap - 200000, current));
-  const right = Math.max(threshold + 200000, current, offer.cap + 500000);
-  const data = [...new Set([left, offer.cap, threshold, current, right])]
-    .sort((a, b) => a - b)
-    .map((price) => ({
-      price,
-      net: lineCents(volume, Math.max(0, price - offer.cap)) - fees,
-    }));
-  return (
-    <figure className="payoff-chart">
-      <figcaption>Net result ($) by market price ($/gal)</figcaption>
-      <ResponsiveContainer width="100%" height={190}>
-        <LineChart
-          data={data}
-          margin={{ top: 16, left: 2, right: 14, bottom: 4 }}
-        >
-          <CartesianGrid strokeDasharray="3 5" vertical={false} />
-          <XAxis
-            type="number"
-            dataKey="price"
-            domain={[left, right]}
-            allowDecimals={false}
-            tickCount={4}
-            tickFormatter={perGallon}
-            tick={{ fontSize: 12 }}
-          />
-          <YAxis
-            allowDecimals={false}
-            tickFormatter={usd}
-            width={56}
-            tick={{ fontSize: 12 }}
-          />
-          <Tooltip
-            formatter={(v) => [usd(Number(v)), "Net result"]}
-            labelFormatter={(v) => perGallon(Number(v)) + "/gal"}
-          />
-          <ReferenceLine y={0} stroke="#64847d" />
-          <Line
-            type="linear"
-            dataKey="net"
-            stroke="#096b6b"
-            strokeWidth={3}
-            dot={false}
-            isAnimationActive={false}
-          />
-          <ReferenceDot
-            x={threshold}
-            y={0}
-            r={5}
-            fill="#ffcf54"
-            stroke="#244941"
-          />
-        </LineChart>
-      </ResponsiveContainer>
-      <small>
-        Gold marker · break-even {fullUsePrice(offer.cap, fees, volume)}/gal
-      </small>
-    </figure>
-  );
-}
+const PayoffChart = dynamic(() => import("./payoff-chart"), {
+  ssr: false,
+  loading: () => <div style={{ height: 190 }} aria-hidden="true" />,
+});
+
 export function ProtectionScenario({
   offer,
   available,
@@ -113,10 +34,10 @@ export function ProtectionScenario({
   available?: number;
 }) {
   const [mode, setMode] = useState<ScenarioMode>("agreement");
-  const [pump, setPump] = useState(
+  const [pump, pumpField] = useCalculatorInput(
     decimalText(Math.max(1, offer.cap - 100000), 6, 3),
   );
-  const [planned, setPlanned] = useState("12");
+  const [planned, plannedField] = useCalculatorInput("12");
   const agreement = mode === "agreement" || available === undefined;
   const includePlan = useFamilyPlan();
   const planCharge = includePlan ? familyPlanCents : 0;
@@ -169,19 +90,11 @@ export function ProtectionScenario({
       <FamilyPlanToggle />
       <div className="form-grid">
         <Field name="Hypothetical pump price ($/gal)">
-          <input
-            inputMode="decimal"
-            value={pump}
-            onChange={(e) => setPump(e.target.value)}
-          />
+          <input {...pumpField} />
         </Field>
         {!agreement && (
           <Field name="Planned gallons">
-            <input
-              inputMode="decimal"
-              value={planned}
-              onChange={(e) => setPlanned(e.target.value)}
-            />
+            <input {...plannedField} />
           </Field>
         )}
       </div>
@@ -227,13 +140,20 @@ export function ProtectionScenario({
               : "On covered gallons you benefit when the pump price exceeds the cap."}
           </p>
           {scenario.spread !== null && (
-            <PayoffChart
-              offer={offer}
-              current={marketPrice}
-              volume={scenario.covered}
-              fees={scenario.fees}
-              spread={scenario.spread}
-            />
+            <figure className="payoff-chart">
+              <figcaption>Net result ($) by market price ($/gal)</figcaption>
+              <PayoffChart
+                cap={offer.cap}
+                current={marketPrice}
+                volume={scenario.covered}
+                fees={scenario.fees}
+                spread={scenario.spread}
+              />
+              <small>
+                Gold marker · break-even{" "}
+                {fullUsePrice(offer.cap, scenario.fees, scenario.covered)}/gal
+              </small>
+            </figure>
           )}
         </div>
       ) : (

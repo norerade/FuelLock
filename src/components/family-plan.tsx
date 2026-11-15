@@ -2,6 +2,15 @@
 import { useSyncExternalStore } from "react";
 import { familyPlanCents, usd } from "@/server/domain/money";
 const key = "fuellock-include-family-plan";
+function saveFamilyPlan(enabled: boolean) {
+  window.sessionStorage.setItem(key, enabled ? "yes" : "no");
+  window.dispatchEvent(new Event("fuellock-plan-change"));
+}
+function readEarlyToggle(input: HTMLInputElement | null) {
+  if (input && input.checked !== input.defaultChecked) {
+    saveFamilyPlan(input.checked);
+  }
+}
 function subscribe(update: () => void) {
   window.addEventListener("fuellock-plan-change", update);
   return () => window.removeEventListener("fuellock-plan-change", update);
@@ -20,10 +29,8 @@ export function FamilyPlanToggle() {
       <input
         type="checkbox"
         checked={enabled}
-        onChange={(e) => {
-          window.sessionStorage.setItem(key, e.target.checked ? "yes" : "no");
-          window.dispatchEvent(new Event("fuellock-plan-change"));
-        }}
+        ref={readEarlyToggle}
+        onChange={(e) => saveFamilyPlan(e.target.checked)}
       />
       Include Family {usd(familyPlanCents)}/mo
     </label>
